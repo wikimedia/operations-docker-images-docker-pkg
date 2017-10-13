@@ -1,0 +1,3 @@
+FROM {{ seed_image }}
+
+RUN {{ "xpenguins" | apt_install }}

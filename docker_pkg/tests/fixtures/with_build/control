@@ -1,0 +1,3 @@
+Package: foobar-server
+Description: A foobar server
+Depends: foo-bar

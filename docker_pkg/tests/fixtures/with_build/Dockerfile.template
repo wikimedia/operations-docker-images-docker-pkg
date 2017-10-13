@@ -1,0 +1,5 @@
+FROM {{ "foo-bar" | image_tag }}
+
+COPY /build/xpenguins-server /bin/xpenguins-server
+
+RUN /bin/xpenguins-server --build-cache

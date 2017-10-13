@@ -1,0 +1,5 @@
+foo-bar (0.0.1) wmf; urgency=medium
+
+  * Initial release. (Closes: T123456789)
+
+ -- Giuseppe Lavagetto <glavagetto@wikimedia.org>  Fri, 13 Oct 2017 18:49:14 +0200
