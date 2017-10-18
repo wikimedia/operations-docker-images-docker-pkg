@@ -34,11 +34,24 @@ class DockerImageBase(object):
     def __init__(self, name, tag, client, config, directory, tpl, build_path):
         self.config = config
         self.docker = client
-        self.name = name
+        self.short_name = name
         self.tag = tag
         self.path = directory
         self.dockerfile_tpl = tpl
         self.build_path = build_path
+
+    @property
+    def name(self):
+        reg = self.config.get('registry', False)
+        if reg:
+            return '{registry}/{name}'.format(registry=reg, name=self.short_name)
+        else:
+            return self.short_name
+
+    @property
+    def safe_name(self):
+        """A filesystem-friendly identified"""
+        return self.short_name.replace('/', '-')
 
     def __str__(self):
         """String representation is <image_name>:<tag>"""
@@ -59,7 +72,7 @@ class DockerImageBase(object):
     def extract(self, src, dst):
         """Extract a path from an image to the filesystem"""
         container_name = '{name}-ephemeral-{rand}'.format(
-            name=self.name,
+            name=self.short_name,
             rand="".join(random.choice(string.ascii_letters) for x in range(5))
         )
         success = False
@@ -164,7 +177,7 @@ class DockerImage(DockerImageBase):
         if os.path.isfile(os.path.join(directory, self.BUILD_TEMPLATE)):
             build_tpl = dockerfile.from_template(directory, self.BUILD_TEMPLATE)
             self.build_image = DockerImageBase(
-                '{name}-build'.format(name=self.name), self.tag,
+                '{name}-build'.format(name=self.short_name), self.tag,
                 self.docker, config, self.path, build_tpl, None)
         else:
             self.build_image = None
@@ -245,7 +258,7 @@ class DockerImage(DockerImageBase):
         if self.build_path is not None:
             # Build path already created, assume it's all good
             return
-        base = tempfile.mkdtemp(prefix='docker-pkg-{name}'.format(name=self.name))
+        base = tempfile.mkdtemp(prefix='docker-pkg-{name}'.format(name=self.safe_name))
         build_path = os.path.join(base, 'context')
         shutil.copytree(self.path, build_path)
         self.build_path = build_path

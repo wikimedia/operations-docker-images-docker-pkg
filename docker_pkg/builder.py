@@ -56,6 +56,11 @@ class ImageFSM(object):
         else:
             self.state = 'error'
 
+    def add_tag(self, tag):
+        print('adding_tag %s' % tag)
+        print("Call: %s %s %s" % (self.image.image, self.image.name, tag))
+        self.image.docker.api.tag(self.image.image, self.image.name, tag)
+
     def publish(self):
         """Publish the image"""
         if self.state != 'built':
@@ -66,11 +71,10 @@ class ImageFSM(object):
             'username': self.config['username'],
             'password': self.config['password']
         }
-        fullname = '/'.join([self.config['registry'], self.image.name])
+        self.add_tag('latest')
         for tag in [self.image.tag, 'latest']:
             try:
-                self.image.docker.api.tag(self.image.image, fullname, tag)
-                self.image.docker.api.push(fullname, tag, auth_config=auth)
+                self.image.docker.api.push(self.image.name, tag, auth_config=auth)
                 self.state = 'published'
             except docker.errors.APIError as e:
                 log.error('Failed to publish image %s:%s: %s', self.image, tag, e)
@@ -152,7 +156,7 @@ class DockerBuilder(object):
     def _img_from_name(self, name):
         """Retrieve an image given a name"""
         for img in self.all_images:
-            if img.name == name:
+            if img.image.short_name == name:
                 return img
         return None
 

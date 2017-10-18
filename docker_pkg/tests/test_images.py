@@ -136,6 +136,10 @@ class TestDockerImage(unittest.TestCase):
         df.assert_called_with(base, 'Dockerfile.build.template')
         self.assertEqual(img.depends, ['foo-bar'])
 
+    def test_safe_name(self):
+        self.image.short_name = 'team-foo/test-app'
+        self.assertEqual(self.image.safe_name, 'team-foo-test-app')
+
     def test_build_environment(self):
         with patch('shutil.copytree') as cp:
             with patch('tempfile.mkdtemp') as mkdir:

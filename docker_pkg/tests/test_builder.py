@@ -16,7 +16,7 @@ class TestDockerBuilder(unittest.TestCase):
 
     def img_metadata(self, name, tag, deps):
         img = ImageFSM(os.path.join(fixtures_dir, 'foo-bar'), self.builder.client, self.builder.config)
-        img.image.name = name
+        img.image.short_name = name
         img.image.tag = tag
         img.image.metadata['depends'] = deps
         img.state = 'to_build'
@@ -103,20 +103,23 @@ class TestDockerBuilder(unittest.TestCase):
 
 
     def test_publish(self):
-        img0 = ImageFSM(os.path.join(fixtures_dir, 'foo-bar'), self.builder.client, self.builder.config)
-        img1 = ImageFSM(os.path.join(fixtures_dir, 'with_build'), self.builder.client, self.builder.config)
-        img0.state = 'built'
-        img1.state = 'built'
-        self.builder.all_images = set([img0, img1])
         self.builder.client.api = MagicMock()
         self.builder.config['username'] = None
         self.builder.config['password'] = None
-        self.assertEqual([], [r for r in self.builder.publish()])
-        self.builder.client.api.assert_not_called()
         self.builder.config['registry'] = 'example.org'
+        with patch('docker_pkg.builder.ImageFSM._is_published') as mp:
+            mp.return_value = False
+            img0 = ImageFSM(os.path.join(fixtures_dir, 'foo-bar'), self.builder.client, self.builder.config)
+            img1 = ImageFSM(os.path.join(fixtures_dir, 'with_build'), self.builder.client, self.builder.config)
+        img0.state = 'built'
+        img1.state = 'built'
+        self.builder.all_images = set([img0, img1])
+        self.assertEqual([], [r for r in self.builder.publish()])
+        self.builder.client.api.tag.assert_not_called()
         self.builder.config['username'] = 'foo'
         self.builder.config['password'] = 'bar'
 
         result = [r for r in self.builder.publish()]
         self.assertEqual('published', result[1].state)
-        self.builder.client.api.tag.assert_any_call('foobar-server:0.0.1~alpha1','example.org/foobar-server', 'latest')
+        self.builder.client.api.tag.assert_any_call('example.org/foobar-server:0.0.1~alpha1','example.org/foobar-server', 'latest')
+        self.builder.client.api.push.assert_any_call('example.org/foobar-server', '0.0.1~alpha1', auth_config={'username': 'foo', 'password': 'bar'})
