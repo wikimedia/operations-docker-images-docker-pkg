@@ -32,6 +32,22 @@ the changelog.
 Finally, the built images will be pushed to the configured registry, when
 authentication credentials are provided.
 
+Configuration
+-------------
+
+You can provide any variable via a configuration file (in YAML format) that you
+will then be able to reference in your templates. In addition to those, there
+are some builtin configuration variables that will not only be usable in your
+templates, but also affect how `docker-pkg` works:
+
+* `registry`: The address of the docker registry to use for all docker-related
+  operations, including checking the published state of the image. The default
+  value is None, and the default docker registry (that is, dockerhub) will be
+  used.
+* `namespace`: The namespace under which all the images to build should live.
+* `username` and `password`: if set, they allow publishing the images you built
+  to a remote repository.
+* `http_proxy`: will set the http proxy to be used for all docker-related operations.
 
 Build the images
 ----------------
@@ -101,8 +117,7 @@ container, you can create a `Dockerfile.build.template` in the container
 directory, using the same syntax of the main docker container, and have the
 build put any artifacts you'll want to use into the `/build` directory. That
 directory will be later be copied to the `build` subdirectory of the main
-Dockerfile
-build context, so you can use those.
+Dockerfile build context, so you can use those.
 
 Every build is performed in a temporary directory, and any leftovers of the
 build (so the build image, any container spawned out of it, etc) will be taken

@@ -6,12 +6,13 @@ import yaml
 from docker_pkg import builder, dockerfile
 
 defaults = {
-    'registry': 'docker-registry.wikimedia.org',
+    'registry': None,
     'username': None, 'password': None,
     'seed_image': 'wikimedia-stretch:latest',
     'apt_options': '',
     'http_proxy': None,
     'base_images': [],
+    'namespace': None,
 }
 
 

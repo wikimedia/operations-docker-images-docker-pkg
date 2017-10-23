@@ -32,6 +32,14 @@ class TestDockerImageBase(unittest.TestCase):
         self.assertEqual(img.build_path, '/tmp')
         self.assertEqual(str(img), 'image_name:image_tag')
 
+    def test_name(self):
+        self.image.config['namespace'] = 'acme'
+        self.assertEqual(self.image.name, 'acme/image_name')
+        self.image.config['registry'] = 'example.org'
+        self.assertEqual(self.image.name, 'example.org/acme/image_name')
+        self.image.config['namespace'] = None
+        self.assertEqual(self.image.name, 'example.org/image_name')
+
     def test_exists(self):
         self.assertTrue(self.image.exists())
         self.docker.images.get.assert_called_with('image_name:image_tag')

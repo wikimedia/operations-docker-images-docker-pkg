@@ -33,16 +33,24 @@ class ImageFSM(object):
 
     def _is_published(self):
         """Check the registry for the image"""
+        proxies = {
+            'https': self.config.get('http_proxy', None)
+        }
         if self.config.get('registry', False):
-            manifest_url = 'https://{registry}/{image}/manifests/{tag}'.format(
-                registry=self.config['registry'],
-                image=self.name,
-                tag=self.image.tag
-            )
-            resp = requests.get(manifest_url)
-            return (resp.status_code == requests.codes.ok)
+            url = 'https://{registry}/v2'.format(self.config['registry'])
         else:
+            # TODO: support dockerhub somehow!
+            # Probably will need a different strategy there.
             return False
+        if self.config.get('namespace', False):
+            url += '/{}'.format(self.config['namespace'])
+        url += '/{}'.format(self.image.short_name)
+        manifest_url = '{url}/manifests/{tag}'.format(
+            url=url,
+            tag=self.image.tag,
+        )
+        resp = requests.head(manifest_url, proxies=proxies)
+        return (resp.status_code == requests.codes.ok)
 
     def build(self):
         """Build the image"""

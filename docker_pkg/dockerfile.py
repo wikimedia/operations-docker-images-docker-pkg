@@ -1,4 +1,5 @@
 from jinja2 import Environment, FileSystemLoader, Template
+from docker_pkg import image_fullname
 
 
 class TemplateEngine(object):
@@ -19,6 +20,7 @@ class TemplateEngine(object):
         cls.setup_apt_remove()
 
         def find_image_tag(image_name):
+            image_name = image_fullname(image_name, cls.config)
             if cls.config.get('registry', False):
                 image_name = '{r}/{i}'.format(r=cls.config.get('registry'), i=image_name)
 

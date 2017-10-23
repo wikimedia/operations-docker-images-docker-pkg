@@ -13,7 +13,7 @@ import docker.errors
 from debian.changelog import Changelog
 from debian.deb822 import Packages
 
-from docker_pkg import dockerfile, log
+from docker_pkg import dockerfile, log, image_fullname
 
 
 @contextmanager
@@ -42,11 +42,7 @@ class DockerImageBase(object):
 
     @property
     def name(self):
-        reg = self.config.get('registry', False)
-        if reg:
-            return '{registry}/{name}'.format(registry=reg, name=self.short_name)
-        else:
-            return self.short_name
+        return image_fullname(self.short_name, self.config)
 
     @property
     def safe_name(self):
