@@ -3,7 +3,7 @@ import logging
 
 import yaml
 
-from docker_pkg import builder, dockerfile
+from docker_pkg import builder, dockerfile, image
 
 defaults = {
     'registry': None,
@@ -19,8 +19,10 @@ defaults = {
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--configfile', default="config.yaml")
-    parser.add_argument('directory')
+    parser.add_argument('directory', help='The directory to scan for images')
     parser.add_argument('--debug', action='store_true', help='Activate debug logging')
+    parser.add_argument('--nightly', action='store_true',
+                        help='Prepare a nightly build')
     return parser.parse_args()
 
 
@@ -44,7 +46,8 @@ def main(args=None):
             filename='../docker-pkg-build.log',
             format=logfmt
         )
-
+    # Nightly image building support
+    image.DockerImage.is_nightly = args.nightly
     config = read_config(args.configfile)
     build = builder.DockerBuilder(args.directory, config)
     dockerfile.TemplateEngine.setup(config, build.known_images)

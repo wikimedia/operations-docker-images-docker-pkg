@@ -15,5 +15,6 @@ class TestCli(unittest.TestCase):
         args = MagicMock()
         args.configfile = os.path.join(fixtures_dir, 'config.yaml')
         args.directory = fixtures_dir
+        args.nightly = False
         docker_pkg.cli.main(args)
         builder.assert_called_with(fixtures_dir, docker_pkg.cli.defaults)

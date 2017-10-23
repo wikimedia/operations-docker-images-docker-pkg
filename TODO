@@ -1,5 +1,4 @@
 * Cleanup of multi-stage builds
 * Store metadata on builds in a local datastore.
 * Allow not cleaning up the build context in case of a build failure
-* nightly builds
 * Allow running tests within the image before publishing

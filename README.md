@@ -8,7 +8,7 @@ unified way, providing out of the box some useful functions:
   on the latest version of its parent image)
 * Cache-avoiding out of the box
 * Support for automatically use build images for creating artifacts
-* Changelog based versioning
+* Changelog based versioning (with nightly builds support)
 * Templating of common operations like installing packages, or image references
 
 Overview
@@ -71,6 +71,10 @@ The name and tag of the image will be determined from the changelog file, so
 it's mandatory that you add your changelog entry there. For most containers, a
 debian-like versioning is a good idea to keep into account the security updates
 that might happen.
+
+In case you run `docker-pkg` with the command-line switch `--nightly`, a nightly
+build will be performed, appending the current date to the tag defined in the
+changelog of each image, and thus triggering a rebuild of all images.
 
 The templating system
 ---------------------

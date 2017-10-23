@@ -1,3 +1,4 @@
+import datetime
 import os
 import unittest
 
@@ -131,6 +132,11 @@ class TestDockerImage(unittest.TestCase):
         self.assertEqual(self.image.path, self.basedir)
         self.assertIsNone(self.image.build_image)
         self.assertEqual(self.image.depends, [])
+        image.DockerImage.is_nightly = True
+        img = image.DockerImage(self.basedir, self.docker, self.config)
+        date = datetime.date.today().strftime(img.NIGHTLY_BUILD_FORMAT)
+        self.assertEqual(img.tag, '0.0.1-{}'.format(date))
+        image.DockerImage.is_nightly = False
 
     def test_init_with_build_image(self):
         base = os.path.join(fixtures_dir, 'with_build')

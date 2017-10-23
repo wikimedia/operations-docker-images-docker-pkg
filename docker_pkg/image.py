@@ -1,3 +1,4 @@
+import datetime
 import os
 import random
 import re
@@ -159,6 +160,8 @@ class DockerImage(DockerImageBase):
 
     TEMPLATE = 'Dockerfile.template'
     BUILD_TEMPLATE = 'Dockerfile.build.template'
+    NIGHTLY_BUILD_FORMAT = '%Y%m%d'
+    is_nightly = False
 
     def __init__(self, directory, client, config):
         self.metadata = {}
@@ -196,6 +199,10 @@ class DockerImage(DockerImageBase):
             pass
         self.metadata['depends'] = deps
         self.metadata['tag'] = str(changelog.get_version())
+        if self.is_nightly:
+            self.metadata['tag'] += '-{date}'.format(
+                date=datetime.date.today().strftime(self.NIGHTLY_BUILD_FORMAT))
+
         self.metadata['name'] = str(changelog.get_package())
         return metadata
 
