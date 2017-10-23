@@ -55,8 +55,7 @@ apt-get update {{ apt_options }} \\
 {%- if http_proxy -%}
 echo 'Acquire::http::Proxy \"{{ http_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy  && \\
 {%- endif -%}
-    apt update && DEBIAN_FRONTEND=noninteractive apt-get remove --yes --purge \\
-        --autoremove {{ packages }} \\
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get remove --yes --purge {{ packages }} \\
 {%- if http_proxy %}
     && rm -f /etc/apt/apt.conf.d/80_proxy \\
 {%- endif %}
