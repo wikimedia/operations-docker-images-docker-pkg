@@ -37,7 +37,7 @@ class ImageFSM(object):
             'https': self.config.get('http_proxy', None)
         }
         if self.config.get('registry', False):
-            url = 'https://{registry}/v2'.format(self.config['registry'])
+            url = 'https://{registry}/v2'.format(registry=self.config['registry'])
         else:
             # TODO: support dockerhub somehow!
             # Probably will need a different strategy there.
@@ -49,7 +49,7 @@ class ImageFSM(object):
             url=url,
             tag=self.image.tag,
         )
-        resp = requests.head(manifest_url, proxies=proxies)
+        resp = requests.head(manifest_url, proxies=proxies, verify='/etc/ssl/certs')
         return (resp.status_code == requests.codes.ok)
 
     def build(self):

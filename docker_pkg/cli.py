@@ -43,7 +43,7 @@ def main(args=None):
     else:
         logging.basicConfig(
             level=logging.INFO,
-            filename='../docker-pkg-build.log',
+            filename='./docker-pkg-build.log',
             format=logfmt
         )
     # Nightly image building support
@@ -76,4 +76,4 @@ def main(args=None):
 
     print('== Build done! ==')
     if not args.debug:
-        print("You can see the logs at ../docker-pkg-build.log")
+        print("You can see the logs at ./docker-pkg-build.log")
