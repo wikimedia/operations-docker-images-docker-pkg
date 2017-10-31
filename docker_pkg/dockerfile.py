@@ -21,8 +21,6 @@ class TemplateEngine(object):
 
         def find_image_tag(image_name):
             image_name = image_fullname(image_name, cls.config)
-            if cls.config.get('registry', False):
-                image_name = '{r}/{i}'.format(r=cls.config.get('registry'), i=image_name)
 
             for img_with_tag in cls.known_images:
                 name, tag = img_with_tag.split(':')
