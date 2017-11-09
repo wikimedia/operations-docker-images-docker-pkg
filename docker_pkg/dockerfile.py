@@ -9,7 +9,7 @@ class TemplateEngine(object):
 
     @classmethod
     def setup(cls, config, known_images):
-        cls.env = Environment()
+        cls.env = Environment(extensions=['jinja2.ext.do'])
         cls.config = config
         cls.known_images = known_images
         cls.setup_filters()
