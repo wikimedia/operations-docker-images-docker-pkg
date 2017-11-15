@@ -65,7 +65,7 @@ def main(args=None):
             print(" ERROR: image {image} failed to build, see logs for details".format(
                 image=img.name))
     # Publishing
-    print("== Step 2: publishing")
+    print("== Step 2: publishing ==")
     if not all([config['username'], config['password']]):
         print("NOT publishing images as we have no auth setup")
     else:
