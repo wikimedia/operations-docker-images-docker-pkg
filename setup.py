@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 """Package configuration."""
 
+import sys
 from setuptools import find_packages, setup
 
+if sys.version_info < (3, 4):
+    sys.exit('docker-pkg requires Python 3.4 or later')
 
 long_description = """
 docker-pkg-images builds docker images from templates.
