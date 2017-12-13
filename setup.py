@@ -18,7 +18,7 @@ install_requires = [
     'python-debian>=0.1.30',
     'requests',
 ]
-test_requires = ['coverage', 'nose']
+test_requires = ['coverage', 'pytest']
 extras = {'tests': test_requires}
 setup(
     author='Giuseppe Lavagetto',
@@ -51,5 +51,4 @@ setup(
     use_scm_version=True,
     url='https://github.com/wikimedia/operations-docker-images-docker-pkg/',
     zip_safe=False,
-    test_suite='nose.collector'
 )
