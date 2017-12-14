@@ -60,6 +60,7 @@ class ImageFSM(object):
             raise ValueError(
                 'Image {image} is already built or failed to build'.format(image=self.image))
         if self.image.build():
+            self.add_tag('latest')
             self.state = 'built'
         else:
             self.state = 'error'
@@ -79,7 +80,6 @@ class ImageFSM(object):
             'username': self.config['username'],
             'password': self.config['password']
         }
-        self.add_tag('latest')
         for tag in [self.image.tag, 'latest']:
             try:
                 self.image.docker.api.push(self.image.name, tag, auth_config=auth)
