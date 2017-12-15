@@ -19,7 +19,10 @@ install_requires = [
     'requests',
 ]
 test_requires = ['coverage', 'pytest']
-extras = {'tests': test_requires}
+extras = {
+    'tests': test_requires,
+    'doc': ['Sphinx'],
+}
 setup(
     author='Giuseppe Lavagetto',
     author_email='joe@wikimedia.org',
