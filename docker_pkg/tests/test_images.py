@@ -27,7 +27,7 @@ class TestDockerImageBase(unittest.TestCase):
 
     def test_init(self):
         img = image.DockerImageBase('image_name', 'image_tag', self.docker, self.config,
-                                     '/home', 'abcde', '/tmp')
+                                    '/home', 'abcde', '/tmp')
         self.assertEqual(img.docker, self.docker)
         self.assertEqual(img.image, 'image_name:image_tag')
         self.assertEqual(img.build_path, '/tmp')
@@ -118,13 +118,11 @@ class TestDockerImageBase(unittest.TestCase):
 class TestDockerImage(unittest.TestCase):
 
     def setUp(self):
-       self.docker = MagicMock()
-       self.config = {}
-       dockerfile.TemplateEngine.setup(self.config, [])
-       self.basedir = os.path.join(fixtures_dir, 'foo-bar')
-       self.image = image.DockerImage(self.basedir, self.docker, self.config)
-
-
+        self.docker = MagicMock()
+        self.config = {}
+        dockerfile.TemplateEngine.setup(self.config, [])
+        self.basedir = os.path.join(fixtures_dir, 'foo-bar')
+        self.image = image.DockerImage(self.basedir, self.docker, self.config)
 
     def test_init(self):
         self.assertEqual(self.image.tag, '0.0.1')

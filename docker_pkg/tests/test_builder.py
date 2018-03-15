@@ -43,8 +43,6 @@ class TestDockerBuilder(unittest.TestCase):
         bc = [img.label for img in self.builder.build_chain]
         self.assertEqual(bc, ['foo-bar:0.0.1', 'foobar-server:0.0.1~alpha1'])
 
-
-
     def test_build_chain(self):
         # Simple test for a linear dependency tree
         a = self.img_metadata('a', '1.0', [])
@@ -80,7 +78,7 @@ class TestDockerBuilder(unittest.TestCase):
 
     @patch('docker_pkg.image.DockerImageBase.exists')
     @patch('docker_pkg.image.DockerImage.build')
-    def  test_build(self, build, exists):
+    def test_build(self, build, exists):
         # Simple build
         exists.return_value = False
         build.side_effect = [True, False]
@@ -101,7 +99,6 @@ class TestDockerBuilder(unittest.TestCase):
         self.builder.all_images = set([img0, img1])
         self.assertEqual([img0], self.builder.images_in_state('built'))
 
-
     def test_publish(self):
         self.builder.client.api = MagicMock()
         self.builder.config['username'] = None
@@ -121,5 +118,7 @@ class TestDockerBuilder(unittest.TestCase):
 
         result = [r for r in self.builder.publish()]
         self.assertEqual('published', result[1].state)
-        self.builder.client.api.tag.assert_any_call('example.org/foobar-server:0.0.1~alpha1','example.org/foobar-server', 'latest')
-        self.builder.client.api.push.assert_any_call('example.org/foobar-server', '0.0.1~alpha1', auth_config={'username': 'foo', 'password': 'bar'})
+        self.builder.client.api.tag.assert_any_call(
+            'example.org/foobar-server:0.0.1~alpha1', 'example.org/foobar-server', 'latest')
+        self.builder.client.api.push.assert_any_call(
+            'example.org/foobar-server', '0.0.1~alpha1', auth_config={'username': 'foo', 'password': 'bar'})
