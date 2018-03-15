@@ -12,7 +12,7 @@ docker-pkg-images builds docker images from templates.
 """
 
 install_requires = [
-    'docker>=2.1.0',
+    'docker >=2.1.0, <3.0.0',
     'pyyaml>=3.11',
     'jinja2>=2.9.6',
     'python-debian>=0.1.30',
