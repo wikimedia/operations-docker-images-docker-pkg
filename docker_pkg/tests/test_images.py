@@ -152,14 +152,39 @@ class TestDockerImage(unittest.TestCase):
         self.image.short_name = 'team-foo/test-app'
         self.assertEqual(self.image.safe_name, 'team-foo-test-app')
 
+    @patch('os.path.isfile')
+    def test_dockerignore(self, isfile):
+        isfile.return_value = False
+        self.assertIsNone(self.image._dockerignore())
+        isfile.return_value = True
+        m = mock_open(read_data='# ignore me')
+        with patch('docker_pkg.image.open', m, create=True):
+            self.assertIsNone(self.image._dockerignore())
+        m = mock_open(read_data='# ignore me \na*\n\n \n')
+        with patch('docker_pkg.image.open', m, create=True):
+            with patch('docker_pkg.image.glob.glob') as mocker:
+                mocker.return_value = [os.path.join(self.image.path, 'abc')]
+                _filter = self.image._dockerignore()
+                self.assertIsNotNone(_filter)
+                mocker.assert_called_with(os.path.join(self.image.path, 'a*'))
+                self.assertEqual(['abc'], _filter(self.image.path, ['abc', 'bcdef']))
+
+
     def test_build_environment(self):
         with patch('shutil.copytree') as cp:
             with patch('tempfile.mkdtemp') as mkdir:
                 mkdir.return_value = '/tmp/test'
                 self.image._create_build_environment()
         self.assertEqual(self.image.build_path, '/tmp/test/context')
-        cp.assert_called_with(self.image.path, self.image.build_path)
+        cp.assert_called_with(self.image.path, self.image.build_path, ignore=None)
         mkdir.assert_called_with(prefix='docker-pkg-foo-bar')
+        # Test that a second call will not call any mock
+        with patch('shutil.copytree') as cp:
+            with patch('tempfile.mkdtemp') as mkdir:
+                mkdir.return_value = '/tmp/test'
+                self.image._create_build_environment()
+        cp.assert_not_called()
+        mkdir.asset_not_called()
         # Now test cleaning the environment
         with patch('shutil.rmtree') as rm, patch('os.path.isdir') as isdir:
             isdir.return_value = False

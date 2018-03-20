@@ -1,4 +1,5 @@
 import datetime
+import glob
 import os
 import random
 import re
@@ -257,13 +258,37 @@ class DockerImage(DockerImageBase):
             self.build_image.clean()
         return success
 
+    def _dockerignore(self):
+        dockerignore = os.path.join(self.path, '.dockerignore')
+        ignored = []
+        if not os.path.isfile(dockerignore):
+            return None
+        with open(dockerignore, 'r') as fh:
+            for line in fh.readlines():
+                # WARNING: does NOT support inline comments
+                if line.startswith('#'):
+                    continue
+                clean_line = line.strip()
+                if not clean_line:
+                    continue
+                for filepath in glob.glob(os.path.join(self.path, clean_line)):
+                    ignored.append(filepath)
+
+        if not ignored:
+            return None
+
+        def _filter(src, files):
+            return [f for f in files if (os.path.join(src, f) in ignored)]
+        return _filter
+
     def _create_build_environment(self):
         if self.build_path is not None:
             # Build path already created, assume it's all good
             return
         base = tempfile.mkdtemp(prefix='docker-pkg-{name}'.format(name=self.safe_name))
         build_path = os.path.join(base, 'context')
-        shutil.copytree(self.path, build_path)
+
+        shutil.copytree(self.path, build_path, ignore=self._dockerignore())
         self.build_path = build_path
 
     def _clean_build_environment(self):
