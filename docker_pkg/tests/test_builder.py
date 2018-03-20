@@ -33,6 +33,7 @@ class TestDockerBuilder(unittest.TestCase):
         # If base_images are given, they are correctly imported
         db = DockerBuilder('test', {'base_images': ['foo:0.0.1', 'bar:1.0.0']})
         self.assertEqual(db.known_images, {'foo:0.0.1', 'bar:1.0.0'})
+        self.assertIsNone(db.glob)
 
     def test_scan(self):
         with patch('docker_pkg.image.DockerImageBase.exists') as mocker:
@@ -62,6 +63,13 @@ class TestDockerBuilder(unittest.TestCase):
         assert pos_a < pos_b
         assert pos_b < pos_c
         assert pos_c < pos_d
+        # if the glob is present, other images will not be built
+        self.builder.glob = 'e*'
+        bc = self.builder.build_chain
+        self.assertEqual(bc, [e])
+        self.builder.glob = 'c*'
+        self.assertEqual(self.builder.build_chain, [a, b, c])
+        self.builder.glob = None
         # Missing dependency doesn't raise an exception (can be an external one)
         self.builder.all_images.remove(c)
         self.builder.all_images.remove(e)

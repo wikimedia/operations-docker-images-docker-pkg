@@ -23,6 +23,8 @@ def parse_args():
     parser.add_argument('--debug', action='store_true', help='Activate debug logging')
     parser.add_argument('--nightly', action='store_true',
                         help='Prepare a nightly build')
+    parser.add_argument('--select', metavar='GLOB', help='A glob pattern for the images to build',
+                        default=None)
     return parser.parse_args()
 
 
@@ -49,7 +51,7 @@ def main(args=None):
     # Nightly image building support
     image.DockerImage.is_nightly = args.nightly
     config = read_config(args.configfile)
-    build = builder.DockerBuilder(args.directory, config)
+    build = builder.DockerBuilder(args.directory, config, args.select)
     dockerfile.TemplateEngine.setup(config, build.known_images)
     print("== Step 0: scanning {d} ==".format(d=args.directory))
     build.scan()

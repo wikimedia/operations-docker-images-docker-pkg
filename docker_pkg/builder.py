@@ -1,3 +1,4 @@
+import fnmatch
 import os
 
 import docker
@@ -93,13 +94,14 @@ class ImageFSM(object):
 class DockerBuilder(object):
     """Scans the filesystem for image declarations, and build them"""
 
-    def __init__(self, directory, config):
+    def __init__(self, directory, config, selection=None):
         if os.path.isabs(directory):
             self.root = directory
         else:
             self.root = os.path.join(os.getcwd(), directory)
 
         self.config = config
+        self.glob = selection
         self.client = docker.from_env(version='auto', timeout=600)
         # The build chain is the list of images we need to build,
         # while the other list is just a list of images we have a reference to
@@ -108,6 +110,12 @@ class DockerBuilder(object):
         self.known_images = set(config.get('base_images', []))
         self.all_images = set()
         self._build_chain = []
+
+    def _matches_glob(self, img):
+        """
+        Check if the label of an image matches the glob pattern
+        """
+        return (self.glob is None or fnmatch.fnmatch(img.label, self.glob))
 
     def scan(self):
         """
@@ -137,7 +145,8 @@ class DockerBuilder(object):
         # reset the build chain
         self._build_chain = []
         for img in self.images_in_state('to_build'):
-            self._add_deps(img)
+            if self._matches_glob(img):
+                self._add_deps(img)
         return self._build_chain
 
     def _add_deps(self, img):
@@ -157,7 +166,7 @@ class DockerBuilder(object):
             self._add_deps(dep_img)
         # If at this point the image is in the build chain, one of its
         # dependencies required it. This means we have a circular dependency.
-        if image in self._build_chain:
+        if img in self._build_chain:
             raise RuntimeError('Dependency loop detected for image {image}'.format(image=img.image))
         self._build_chain.append(img)
 

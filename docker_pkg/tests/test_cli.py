@@ -16,5 +16,6 @@ class TestCli(unittest.TestCase):
         args.configfile = os.path.join(fixtures_dir, 'config.yaml')
         args.directory = fixtures_dir
         args.nightly = False
+        args.select = 'python*'
         docker_pkg.cli.main(args)
-        builder.assert_called_with(fixtures_dir, docker_pkg.cli.defaults)
+        builder.assert_called_with(fixtures_dir, docker_pkg.cli.defaults, 'python*')
