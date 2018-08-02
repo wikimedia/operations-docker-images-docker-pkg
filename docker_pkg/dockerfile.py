@@ -46,6 +46,9 @@ apt-get update {{ apt_options }} \\
     && apt-get clean && rm -rf /var/lib/apt/lists/* """)
 
         def apt_install(pkgs):
+            # Allow people to write easier to read newline separated package
+            # lists by turning them into space separated ones for apt
+            pkgs = pkgs.replace('\n', ' ')
             return t.render(packages=pkgs, **cls.config)
         cls.env.filters['apt_install'] = apt_install
 
