@@ -194,7 +194,7 @@ class DockerImage(DockerImageBase):
                         deps_str = pkg.get(k, '')
                         if deps_str:
                             # TODO: support versions? not sure it's needed
-                            deps.extend(re.split('\s*,[\s\n]*', deps_str))
+                            deps.extend(re.split(r'\s*,[\s\n]*', deps_str))
         except FileNotFoundError:
             # no control file. we can live with that for now.
             pass
