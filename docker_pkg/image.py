@@ -34,8 +34,8 @@ def pushd(dirname):
 class DockerImageBase(object):
     """Lower-level management of docker images"""
     def __init__(
-            self, name, tag, client, config, directory, tpl, build_path,
-            nocache=True
+        self, name, tag, client, config, directory, tpl, build_path,
+        nocache=True, pull=True
     ):
         self.config = config
         self.docker = client
@@ -45,6 +45,7 @@ class DockerImageBase(object):
         self.dockerfile_tpl = tpl
         self.build_path = build_path
         self.nocache = nocache
+        self.pull = pull
 
     @property
     def name(self):
@@ -142,7 +143,7 @@ class DockerImageBase(object):
                 tag=self.image,
                 nocache=self.nocache,
                 rm=True,
-                pull=False,
+                pull=self.pull,
                 buildargs=self.buildargs
             )
         return self.image
@@ -168,14 +169,17 @@ class DockerImage(DockerImageBase):
     NIGHTLY_BUILD_FORMAT = '%Y%m%d'
     is_nightly = False
 
-    def __init__(self, directory, client, config, nocache=True):
+    def __init__(
+        self, directory, client, config,
+        nocache=True, pull=True
+    ):
         self.metadata = {}
         self.read_metadata(directory)
         tpl = dockerfile.from_template(directory, self.TEMPLATE)
         # The build path will be set later
         super().__init__(
             self.metadata['name'], self.metadata['tag'],
-            client, config, directory, tpl, None, nocache
+            client, config, directory, tpl, None, nocache, pull
         )
         # Now instantiate the build image, if needed
         if os.path.isfile(os.path.join(directory, self.BUILD_TEMPLATE)):

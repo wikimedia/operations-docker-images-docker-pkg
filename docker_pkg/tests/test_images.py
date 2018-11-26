@@ -102,11 +102,12 @@ class TestDockerImageBase(unittest.TestCase):
             tag='image_name:image_tag',
             nocache=True,
             rm=True,
-            pull=False,
+            pull=True,
             buildargs={}
         )
-        # Check that nocache is correctly passed down
+        # Check that nocache, pull are correctly passed down
         self.image.nocache = False
+        self.image.pull = False
         with patch('docker_pkg.image.open', m, create=True):
             self.image.build('/tmp', filename='test')
         self.docker.images.build.assert_called_with(

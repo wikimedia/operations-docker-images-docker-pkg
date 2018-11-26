@@ -33,6 +33,8 @@ def parse_args():
     build_opts = parser.add_argument_group('options for docker build')
     build_opts.add_argument('--use-cache', dest='nocache', action='store_false',
                             help='Do use Docker cache when building the images')
+    build_opts.add_argument('--no-pull', dest='pull', action='store_false',
+                            help='Do not attempt to pull a newer version of the images')
 
     return parser.parse_args()
 
@@ -62,7 +64,7 @@ def main(args=None):
     # Nightly image building support
     image.DockerImage.is_nightly = args.nightly
     config = read_config(args.configfile)
-    build = builder.DockerBuilder(args.directory, config, args.select, args.nocache)
+    build = builder.DockerBuilder(args.directory, config, args.select, args.nocache, args.pull)
     dockerfile.TemplateEngine.setup(config, build.known_images)
     print("== Step 0: scanning {d} ==".format(d=args.directory))
     build.scan()
