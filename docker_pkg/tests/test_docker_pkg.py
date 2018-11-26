@@ -6,7 +6,7 @@ from docker_pkg import image_fullname
 class TestDocker_pkg(unittest.TestCase):
 
     def assertFullname(self, expected, image, cfg):
-        self.assertEquals(expected, image_fullname(image, cfg))
+        self.assertEqual(expected, image_fullname(image, cfg))
 
     def test_image_fullname_with_empty_configuration(self):
         self.assertFullname('image', 'image', {})
