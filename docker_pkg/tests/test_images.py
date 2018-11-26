@@ -96,10 +96,11 @@ class TestDockerImageBase(unittest.TestCase):
         m = mock_open()
         with patch('docker_pkg.image.open', m, create=True):
             self.image.build('/tmp', filename='test')
-        self.docker.images.build.assert_called_with(
+        self.docker.api.build.assert_called_with(
             path='/tmp',
             dockerfile='test',
             tag='image_name:image_tag',
+            decode=True,
             nocache=True,
             rm=True,
             pull=True,
@@ -110,14 +111,15 @@ class TestDockerImageBase(unittest.TestCase):
         self.image.pull = False
         with patch('docker_pkg.image.open', m, create=True):
             self.image.build('/tmp', filename='test')
-        self.docker.images.build.assert_called_with(
+        self.docker.api.build.assert_called_with(
             path='/tmp',
             dockerfile='test',
             tag='image_name:image_tag',
             nocache=False,
             rm=True,
             pull=False,
-            buildargs={}
+            buildargs={},
+            decode=True
         )
 
         self.image.nocache = False

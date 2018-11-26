@@ -136,16 +136,35 @@ class DockerImageBase(object):
         with open(os.path.join(build_path, filename), 'w') as fh:
             fh.write(dockerfile)
 
+        def stream_to_log(logger, chunk):
+            if 'error' in chunk:
+                error_msg = chunk['errorDetail']['message'].rstrip()
+                error_code = chunk['errorDetail']['code']
+                logger.error('Build command failed with exit code %s: %s',
+                             error_code, error_msg)
+                raise docker.errors.BuildError('Building image {} failed'.format(self.image))
+            elif 'stream' in chunk:
+                logger.info(chunk['stream'].rstrip())
+            elif 'status' in chunk:
+                if 'progress' in chunk:
+                    logger.debug("%s\t%s: %s ", chunk['status'], chunk['id'], chunk['progress'])
+                else:
+                    logger.info(chunk['status'])
+            else:
+                logger.warning('Unhandled stream chunk: %s' % chunk)
+
+        image_logger = log.getChild(self.image)
         with pushd(build_path):
-            self.docker.images.build(
-                path=build_path,
-                dockerfile=filename,
-                tag=self.image,
-                nocache=self.nocache,
-                rm=True,
-                pull=self.pull,
-                buildargs=self.buildargs
-            )
+            for line in self.docker.api.build(
+                    path=build_path,
+                    dockerfile=filename,
+                    tag=self.image,
+                    nocache=self.nocache,
+                    rm=True,
+                    pull=self.pull,
+                    buildargs=self.buildargs,
+                    decode=True):
+                stream_to_log(image_logger, line)
         return self.image
 
     def clean(self):
