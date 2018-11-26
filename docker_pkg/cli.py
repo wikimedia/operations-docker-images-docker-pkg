@@ -20,7 +20,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--configfile', default="config.yaml")
     parser.add_argument('directory', help='The directory to scan for images')
-    parser.add_argument('--debug', action='store_true', help='Activate debug logging')
+
+    loglevel = parser.add_argument_group(title='logging options').add_mutually_exclusive_group()
+    loglevel.add_argument('--debug', action='store_true', help='Activate debug logging')
+    loglevel.add_argument('--info', action='store_true', help='Activate info logging')
+
     parser.add_argument('--nightly', action='store_true',
                         help='Prepare a nightly build')
     parser.add_argument('--select', metavar='GLOB', help='A glob pattern for the images to build',
@@ -42,6 +46,8 @@ def main(args=None):
     logfmt = "%(asctime)s [docker-pkg-build] %(levelname)s - %(message)s (%(filename)s:%(lineno)s)"  # noqa: E501
     if args.debug:
         logging.basicConfig(level=logging.DEBUG, format=logfmt)
+    elif args.info:
+        logging.basicConfig(level=logging.INFO, format=logfmt)
     else:
         logging.basicConfig(
             level=logging.INFO,
