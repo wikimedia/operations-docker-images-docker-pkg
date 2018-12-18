@@ -11,9 +11,9 @@ class ImageFSM(object):
 
     STATES = ['built', 'to_build', 'published', 'error']
 
-    def __init__(self, root, client, config):
+    def __init__(self, root, client, config, nocache=True):
         self.config = config
-        self.image = image.DockerImage(root, client, self.config)
+        self.image = image.DockerImage(root, client, self.config, nocache=nocache)
         if not self.image.exists():
             self.state = 'to_build'
         elif self._is_published():
@@ -94,7 +94,7 @@ class ImageFSM(object):
 class DockerBuilder(object):
     """Scans the filesystem for image declarations, and build them"""
 
-    def __init__(self, directory, config, selection=None):
+    def __init__(self, directory, config, selection=None, nocache=True):
         if os.path.isabs(directory):
             self.root = directory
         else:
@@ -102,6 +102,7 @@ class DockerBuilder(object):
 
         self.config = config
         self.glob = selection
+        self.nocache = nocache
         self.client = docker.from_env(version='auto', timeout=600)
         # The build chain is the list of images we need to build,
         # while the other list is just a list of images we have a reference to
@@ -125,7 +126,7 @@ class DockerBuilder(object):
             if 'Dockerfile.template' in files and 'changelog' in files:
                 log.info('Processing the dockerfile template in %s', root)
                 try:
-                    img = ImageFSM(root, self.client, self.config)
+                    img = ImageFSM(root, self.client, self.config, self.nocache)
                     self.known_images.add(img.label)
                     self.all_images.add(img)
                 except Exception as e:

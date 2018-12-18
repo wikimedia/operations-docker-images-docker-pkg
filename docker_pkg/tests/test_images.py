@@ -32,6 +32,7 @@ class TestDockerImageBase(unittest.TestCase):
         self.assertEqual(img.image, 'image_name:image_tag')
         self.assertEqual(img.build_path, '/tmp')
         self.assertEqual(str(img), 'image_name:image_tag')
+        self.assertTrue(img.nocache)
 
     def test_name(self):
         self.image.config['namespace'] = 'acme'
@@ -104,6 +105,21 @@ class TestDockerImageBase(unittest.TestCase):
             pull=False,
             buildargs={}
         )
+        # Check that nocache is correctly passed down
+        self.image.nocache = False
+        with patch('docker_pkg.image.open', m, create=True):
+            self.image.build('/tmp', filename='test')
+        self.docker.images.build.assert_called_with(
+            path='/tmp',
+            dockerfile='test',
+            tag='image_name:image_tag',
+            nocache=False,
+            rm=True,
+            pull=False,
+            buildargs={}
+        )
+
+        self.image.nocache = False
         self.image.dockerfile_tpl.render.assert_called_with(foo='bar')
         m.assert_called_with('/tmp/test', 'w')
         # An empty dockerfile will raise an exception

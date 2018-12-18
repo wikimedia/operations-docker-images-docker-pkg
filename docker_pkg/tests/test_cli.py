@@ -17,5 +17,6 @@ class TestCli(unittest.TestCase):
         args.directory = fixtures_dir
         args.nightly = False
         args.select = 'python*'
+        args.nocache = True
         docker_pkg.cli.main(args)
-        builder.assert_called_with(fixtures_dir, docker_pkg.cli.defaults, 'python*')
+        builder.assert_called_with(fixtures_dir, docker_pkg.cli.defaults, 'python*', True)
