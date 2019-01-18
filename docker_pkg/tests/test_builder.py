@@ -19,7 +19,7 @@ class TestDockerBuilder(unittest.TestCase):
         img.image.short_name = name
         img.image.tag = tag
         img.image.metadata['depends'] = deps
-        img.state = 'to_build'
+        img.state = ImageFSM.STATE_TO_BUILD
         return img
 
     @patch('docker.from_env')
@@ -103,10 +103,10 @@ class TestDockerBuilder(unittest.TestCase):
     def test_images_in_state(self):
         img0 = ImageFSM(os.path.join(fixtures_dir, 'foo-bar'), self.builder.client, self.builder.config)
         img1 = ImageFSM(os.path.join(fixtures_dir, 'with_build'), self.builder.client, self.builder.config)
-        img0.state = 'built'
-        img1.state = 'error'
+        img0.state = ImageFSM.STATE_BUILT
+        img1.state = ImageFSM.STATE_ERROR
         self.builder.all_images = set([img0, img1])
-        self.assertEqual([img0], self.builder.images_in_state('built'))
+        self.assertEqual([img0], self.builder.images_in_state(ImageFSM.STATE_BUILT))
 
     def test_publish(self):
         self.builder.client.api = MagicMock()
@@ -126,6 +126,6 @@ class TestDockerBuilder(unittest.TestCase):
         self.builder.config['password'] = 'bar'
 
         result = [r for r in self.builder.publish()]
-        self.assertEqual('published', result[1].state)
+        self.assertEqual(ImageFSM.STATE_PUBLISHED, result[1].state)
         self.builder.client.api.push.assert_any_call(
             'example.org/foobar-server', '0.0.1~alpha1', auth_config={'username': 'foo', 'password': 'bar'})

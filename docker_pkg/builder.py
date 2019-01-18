@@ -9,17 +9,35 @@ from docker_pkg import image, log
 
 class ImageFSM(object):
 
-    STATES = ['built', 'to_build', 'published', 'error']
+    STATE_PUBLISHED = 'published'
+    STATE_BUILT = 'built'
+    STATE_TO_BUILD = 'to_build'
+    STATE_ERROR = 'error'
+    STATES = [STATE_PUBLISHED, STATE_BUILT, STATE_TO_BUILD, STATE_ERROR]
 
     def __init__(self, root, client, config, nocache=True, pull=True):
         self.config = config
         self.image = image.DockerImage(root, client, self.config, nocache=nocache, pull=pull)
-        if not self.image.exists():
-            self.state = 'to_build'
-        elif self._is_published():
-            self.state = 'published'
+        self.state = self.STATE_TO_BUILD
+        if pull:
+            # If we allow docker to pull images from the registry,
+            # we want to know if an image is already available and
+            # not rebuild it.
+            if self._is_published():
+                self.state = self.STATE_PUBLISHED
+            elif self.image.exists():
+                self.state = self.STATE_BUILT
+            else:
+                self.state = self.STATE_TO_BUILD
         else:
-            self.state = 'built'
+            # If we're not allowing docker to pull images from the registry,
+            # we need to build any image that's not already present.
+            if not self.image.exists():
+                self.state = self.STATE_TO_BUILD
+            elif self._is_published():
+                self.state = self.STATE_PUBLISHED
+            else:
+                self.state = self.STATE_BUILT
 
     @property
     def label(self):
@@ -55,16 +73,16 @@ class ImageFSM(object):
 
     def build(self):
         """Build the image"""
-        if self.state == 'built':
+        if self.state == self.STATE_BUILT:
             return
-        if self.state != 'to_build':
+        if self.state != self.STATE_TO_BUILD:
             raise ValueError(
                 'Image {image} is already built or failed to build'.format(image=self.image))
         if self.image.build():
             self.add_tag('latest')
-            self.state = 'built'
+            self.state = self.STATE_BUILT
         else:
-            self.state = 'error'
+            self.state = self.STATE_ERROR
 
     def add_tag(self, tag):
         print('adding_tag %s' % tag)
@@ -73,7 +91,7 @@ class ImageFSM(object):
 
     def publish(self):
         """Publish the image"""
-        if self.state != 'built':
+        if self.state != self.STATE_BUILT:
             raise ValueError(
                 'Image {image} is not built, cannot publish it!'.format(image=self.image))
         # Checking the config has these keys should be done before trying to publish
@@ -84,10 +102,10 @@ class ImageFSM(object):
         for tag in [self.image.tag, 'latest']:
             try:
                 self.image.docker.api.push(self.image.name, tag, auth_config=auth)
-                self.state = 'published'
+                self.state = self.STATE_PUBLISHED
             except docker.errors.APIError as e:
                 log.error('Failed to publish image %s:%s: %s', self.image, tag, e)
-                self.state = 'error'
+                self.state = self.STATE_ERROR
                 break
 
 
@@ -146,7 +164,7 @@ class DockerBuilder(object):
     def build_chain(self):
         # reset the build chain
         self._build_chain = []
-        for img in self.images_in_state('to_build'):
+        for img in self.images_in_state(ImageFSM.STATE_TO_BUILD):
             if self._matches_glob(img):
                 self._add_deps(img)
         return self._build_chain
@@ -161,7 +179,7 @@ class DockerBuilder(object):
             # If the parent image doesn't exist or doesn't need to be built,
             # go on.
             # TODO: fail if dependency is not found?
-            if dep_img is None or dep_img.state != 'to_build':
+            if dep_img is None or dep_img.state != ImageFSM.STATE_TO_BUILD:
                 continue
             # TODO: manage the case where the image state is 'error'
             # Add recursively any dependency of the image
@@ -190,6 +208,6 @@ class DockerBuilder(object):
         if not all([self.config['username'], self.config['password']]):
             log.warning('Cannot publish images if both username and password are not set')
             return
-        for img in self.images_in_state('built'):
+        for img in self.images_in_state(ImageFSM.STATE_BUILT):
             img.publish()
             yield img
