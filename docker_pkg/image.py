@@ -35,7 +35,7 @@ class DockerImageBase(object):
     """Lower-level management of docker images"""
     def __init__(
         self, name, tag, client, config, directory, tpl, build_path,
-        nocache=True, pull=True
+            nocache=True, pull=True
     ):
         self.config = config
         self.docker = client
@@ -63,6 +63,27 @@ class DockerImageBase(object):
     @property
     def image(self):
         return "{name}:{tag}".format(name=self.name, tag=self.tag)
+
+    def prune(self):
+        """
+        Removes all old versions of the image from the local docker daemon.
+
+        returns True if successful, False otherwise
+        """
+        success = True
+        for image in self.docker.images.list(self.name):
+            # If any of the labels correspond to what declared in the
+            # changelog, keep it
+            image_aliases = image.attrs['RepoTags']
+            if not any([(alias == self.image) for alias in image_aliases]):
+                try:
+                    img_id = image.attrs['Id']
+                    log.info('Removing image "%s" (Id: %s)', image_aliases[0], img_id)
+                    self.docker.images.remove(img_id)
+                except Exception as e:
+                    log.error('Error removing image %s: %s', img_id, str(e))
+                    success = False
+        return success
 
     def exists(self):
         """True if the image is present locally, false otherwise"""

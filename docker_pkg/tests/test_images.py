@@ -2,7 +2,7 @@ import datetime
 import os
 import unittest
 
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch, mock_open, call
 
 import docker.errors
 
@@ -77,6 +77,23 @@ class TestDockerImageBase(unittest.TestCase):
         tarmock.extractall.side_effect = ValueError('test!')
         with self.assertRaises(RuntimeError):
             self.image.extract('/build', '/tmp')
+
+    def test_prune(self):
+        def mock_image(tags, id):
+            image = MagicMock()
+            image.attrs = {'RepoTags': tags, 'Id': id}
+            return image
+
+        # The happy path works, and deletes just the right images
+        self.docker.images.list.return_value = [
+            mock_image(['image_name:1.0', 'image_name:image_tag'], 'test1'),
+            mock_image(['image_name:0.9'], 'test2'),
+        ]
+        self.assertTrue(self.image.prune())
+        self.docker.images.list.assert_called_with('image_name')
+        self.docker.images.remove.assert_has_calls([call('test2')])
+        self.docker.images.remove.side_effect = ValueError('error')
+        self.assertFalse(self.image.prune())
 
     def test_clean(self):
         self.image.clean()
