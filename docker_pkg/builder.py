@@ -1,3 +1,7 @@
+"""
+Workflow to process, build and publish image definitions
+"""
+
 import fnmatch
 import os
 
@@ -8,12 +12,25 @@ from docker_pkg import image, log
 
 
 class ImageFSM(object):
+    """
+    Finite state machine
+    """
 
     STATE_PUBLISHED = 'published'
+    'Image is in the target Docker registry'
+
     STATE_BUILT = 'built'
+    'Image is in the local Docker daemon'
+
     STATE_TO_BUILD = 'to_build'
+    'Image could not be found in the registry or the daemon'
+
     STATE_ERROR = 'error'
+    ('Error state, for examples a failure to build locally or to publish it '
+     'to the registry')
+
     STATES = [STATE_PUBLISHED, STATE_BUILT, STATE_TO_BUILD, STATE_ERROR]
+    'List of possible states'
 
     def __init__(self, root, client, config, nocache=True, pull=True):
         self.config = config

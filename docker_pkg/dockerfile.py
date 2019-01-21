@@ -1,3 +1,10 @@
+"""
+Dockerfile.template processing
+
+The files are Jinja2 templates, the class provides built-in templates to ease
+writing Dockerfiles.
+"""
+
 from jinja2 import Environment, FileSystemLoader, Template
 from docker_pkg import image_fullname
 

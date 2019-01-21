@@ -41,6 +41,19 @@ extensions = [
 # http://www.sphinx-doc.org/en/stable/ext/autosummary.html
 autosummary_generate = True
 
+autoclass_content = "both"  # class and __init docs are concatenated
+
+autodoc_member_order = 'bysource'
+
+# http://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_default_options
+#
+# Setting None means all, true
+autodoc_default_options = {
+    'members': None,
+    'undoc-members': None,
+    'show-inheritance': None,
+}
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 

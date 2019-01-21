@@ -1,3 +1,7 @@
+"""
+Manipulation of Docker images
+"""
+
 import datetime
 import glob
 import os

@@ -1,3 +1,7 @@
+"""
+Command line interface
+"""
+
 import argparse
 import logging
 import sys
