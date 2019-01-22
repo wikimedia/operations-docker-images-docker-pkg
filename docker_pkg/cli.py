@@ -18,6 +18,7 @@ defaults = {
     'http_proxy': None,
     'base_images': [],
     'namespace': None,
+    'scan_workers': 8,
 }
 
 ACTIONS = ['build', 'prune']
@@ -90,7 +91,7 @@ def main(args=None):
 def build(application, log_to_stdout):
     dockerfile.TemplateEngine.setup(application.config, application.known_images)
     print("== Step 0: scanning {d} ==".format(d=application.root))
-    application.scan()
+    application.scan(max_workers=application.config['scan_workers'])
     print("Will build the following images:")
     for img in application.build_chain:
         print("* {image}".format(image=img.label))
@@ -119,7 +120,7 @@ def build(application, log_to_stdout):
 
 def prune(application):
     print("== Step 0: scanning {d} ==".format(d=application.root))
-    application.scan()
+    application.scan(max_workers=application.config['scan_workers'])
     print("Will prune old versions of the following images:")
     for img in application.all_images:
         print("* {image}".format(image=img.label))

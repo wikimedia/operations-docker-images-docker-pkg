@@ -50,6 +50,9 @@ templates, but also affect how ``docker-pkg`` works:
 * ``username`` and ``password``: if set, they allow publishing the images you built
   to a remote repository.
 * ``http_proxy``: will set the http proxy to be used for all docker-related operations.
+* ``scan_workers``: maximum number of threads to use when scanning local
+  definition of images. For each image found, ``docker-pkg`` queries the local
+  Docker daemon and the registry. Default: 8.
 
 Build the images
 ----------------

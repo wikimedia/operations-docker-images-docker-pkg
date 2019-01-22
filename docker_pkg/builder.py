@@ -1,12 +1,13 @@
 """
 Workflow to process, build and publish image definitions
 """
-
 import fnmatch
 import os
 
 import docker
 import requests
+
+from concurrent.futures import ThreadPoolExecutor
 
 from docker_pkg import image, log
 
@@ -159,10 +160,17 @@ class DockerBuilder(object):
         """
         return (self.glob is None or fnmatch.fnmatch(img.label, self.glob))
 
-    def scan(self):
+    def scan(self, max_workers=1):
         """
         Scan the desired directory for dockerfiles, add them all to a build chain
+
+        max_workers: maximum number of threads to use when scanning local
+        definition of images. For each image found, ``scan`` triggers queries
+        to the local Docker daemon and the registry. Passed to
+        concurrent.futures.ThreadPoolExecutor(). Default: 1.
         """
+
+        roots = []
         for root, dirs, files in os.walk(self.root):
             hasTemplate = 'Dockerfile.template' in files
             hasChangelog = 'changelog' in files
@@ -175,17 +183,25 @@ class DockerBuilder(object):
             elif not hasChangelog:
                 log.warning('Ignoring %s since it lacks a changelog', root)
                 continue
+            # We have both files and can proceed this directory
+            roots.append(root)
 
-            log.info('Processing the dockerfile template in %s', root)
-            try:
-                img = ImageFSM(root, self.client, self.config, self.nocache, self.pull)
-                self.known_images.add(img.label)
-                self.all_images.add(img)
-            except Exception as e:
-                log.error('Could not load image in %s: %s', root, e, exc_info=True)
-                raise RuntimeError(
-                    'The image in {d} could not be loaded, '
-                    'check the logs for details'.format(d=root))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            imgs = executor.map(self._process_dockerfile_template, roots)
+
+        for img in imgs:
+            self.known_images.add(img.label)
+            self.all_images.add(img)
+
+    def _process_dockerfile_template(self, root):
+        log.info('Processing the dockerfile template in %s', root)
+        try:
+            return ImageFSM(root, self.client, self.config, self.nocache, self.pull)
+        except Exception as e:
+            log.error('Could not load image in %s: %s', root, e, exc_info=True)
+            raise RuntimeError(
+                'The image in {d} could not be loaded, '
+                'check the logs for details'.format(d=root))
 
     def images_in_state(self, state):
         """Find all images in a specific state"""
