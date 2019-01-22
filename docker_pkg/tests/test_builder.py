@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 
@@ -43,6 +44,35 @@ class TestDockerBuilder(unittest.TestCase):
         # Build chain is correctly ordered
         bc = [img.label for img in self.builder.build_chain]
         self.assertEqual(bc, ['foo-bar:0.0.1', 'foobar-server:0.0.1~alpha1'])
+
+    def test_scan_skips_when_missing_changelog(self):
+        with patch('os.walk') as os_walk:
+            os_walk.return_value = [
+                ('image_with_template', [], ['Dockerfile.template'])]
+            with self.assertLogs(level='WARNING') as logger:
+                self.builder.scan()
+                self.assertEqual(
+                    logger.output,
+                    ['WARNING:docker_pkg:Ignoring image_with_template since it lacks a changelog'])
+
+    def test_scan_skips_when_missing_dockerfile_template(self):
+        with patch('os.walk') as os_walk:
+            os_walk.return_value = [
+                ('image_with_changelog', [], ['changelog'])]
+            with self.assertLogs(level='WARNING') as logger:
+                self.builder.scan()
+                self.assertEqual(
+                    logger.output,
+                    ['WARNING:docker_pkg:Ignoring image_with_changelog since it lacks a Dockerfile.template'])
+
+    def test_scan_silently_skips_when_missing_dockerfile_template_and_changelog(self):
+        with patch('os.walk') as os_walk:
+            os_walk.return_value = [('image_with_no_files', [], [])]
+            with self.assertLogs() as logger:
+                self.builder.scan()
+                # assertLogs() requires at least one message
+                logging.getLogger('dummy').info('fakemessage')
+                self.assertEqual(logger.output, ['INFO:dummy:fakemessage'])
 
     def test_build_chain(self):
         # Simple test for a linear dependency tree

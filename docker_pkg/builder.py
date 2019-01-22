@@ -164,17 +164,28 @@ class DockerBuilder(object):
         Scan the desired directory for dockerfiles, add them all to a build chain
         """
         for root, dirs, files in os.walk(self.root):
-            if 'Dockerfile.template' in files and 'changelog' in files:
-                log.info('Processing the dockerfile template in %s', root)
-                try:
-                    img = ImageFSM(root, self.client, self.config, self.nocache, self.pull)
-                    self.known_images.add(img.label)
-                    self.all_images.add(img)
-                except Exception as e:
-                    log.error('Could not load image in %s: %s', root, e, exc_info=True)
-                    raise RuntimeError(
-                        'The image in {d} could not be loaded, '
-                        'check the logs for details'.format(d=root))
+            hasTemplate = 'Dockerfile.template' in files
+            hasChangelog = 'changelog' in files
+
+            if not hasTemplate and not hasChangelog:
+                continue
+            elif not hasTemplate:
+                log.warning('Ignoring %s since it lacks a Dockerfile.template', root)
+                continue
+            elif not hasChangelog:
+                log.warning('Ignoring %s since it lacks a changelog', root)
+                continue
+
+            log.info('Processing the dockerfile template in %s', root)
+            try:
+                img = ImageFSM(root, self.client, self.config, self.nocache, self.pull)
+                self.known_images.add(img.label)
+                self.all_images.add(img)
+            except Exception as e:
+                log.error('Could not load image in %s: %s', root, e, exc_info=True)
+                raise RuntimeError(
+                    'The image in {d} could not be loaded, '
+                    'check the logs for details'.format(d=root))
 
     def images_in_state(self, state):
         """Find all images in a specific state"""
