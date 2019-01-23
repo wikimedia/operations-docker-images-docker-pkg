@@ -68,7 +68,7 @@ class ImageFSM(object):
             url=url,
             tag=self.image.tag,
         )
-        resp = requests.head(manifest_url, proxies=proxies)
+        resp = requests.get(manifest_url, proxies=proxies)
         return (resp.status_code == requests.codes.ok)
 
     def build(self):
