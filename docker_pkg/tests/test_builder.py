@@ -114,6 +114,40 @@ class TestDockerBuilder(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.builder.build_chain
 
+    def test_build_dependencies(self):
+        # Simple test for a linear dependency tree
+        a = self.img_metadata('a', '1.0', [])
+        b = self.img_metadata('b', '1.0', ['a'])
+        c = self.img_metadata('c', '1.0', ['b'])
+        d = self.img_metadata('d', '1.0', ['a', 'c', 'f'])
+        f = self.img_metadata('f', '1.0', [])
+        self.builder.all_images = set([a, b, c, d, f])
+        self.builder._build_dependencies()
+        assert a.children == {b, d}
+        assert b.children == {c}
+        assert c.children == {d}
+        assert d.children == set()
+        assert f.children == {d}
+        # Now add a non-existing dependency
+        f.image.metadata['depends'] = ['unicorn']
+        self.assertRaisesRegex(
+            RuntimeError,
+            r'Image unicorn .* not found',
+            self.builder._build_dependencies
+        )
+
+    def test_images_to_update(self):
+        a = self.img_metadata('a', '1.0', [])
+        b = self.img_metadata('b', '1.0', ['a'])
+        c = self.img_metadata('c', '1.0', ['b'])
+        d = self.img_metadata('d', '1.0', ['a', 'c', 'f'])
+        f = self.img_metadata('f', '1.0', [])
+        self.builder.all_images = set([a, b, c, d, f])
+        self.builder.glob = '*c:*'
+        assert self.builder.images_to_update() == {c, d}
+        self.builder.glob = '*a:*'
+        assert self.builder.images_to_update() == {a, b, c, d}
+
     @patch('docker_pkg.image.DockerImageBase.exists')
     @patch('docker_pkg.image.DockerImage.build')
     def test_build(self, build, exists):

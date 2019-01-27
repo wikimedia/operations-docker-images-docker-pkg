@@ -9,8 +9,10 @@ import random
 import re
 import shutil
 import string
+import subprocess
 import tarfile
 import tempfile
+import time
 
 from contextlib import contextmanager
 from io import BytesIO
@@ -265,9 +267,76 @@ class DockerImage(DockerImageBase):
         if self.is_nightly:
             self.metadata['tag'] += '-{date}'.format(
                 date=datetime.datetime.now().strftime(self.NIGHTLY_BUILD_FORMAT))
-
         self.metadata['name'] = str(changelog.get_package())
         return metadata
+
+    def new_tag(self, identifier='s'):
+        """Create a new version tag from the currently read tag"""
+        # Note: this only supports a subclass of all valid debian tags.
+        if identifier is None:
+            identifier = ''
+        re_new_version = re.compile(
+            r'^([\d\-\.]+?)(-{}(\d+))?$'.format(identifier)
+        )
+        previous_version = self.metadata['tag']
+        m = re_new_version.match(previous_version)
+        if not m:
+            raise ValueError("Was not able to match version {}}".format(previous_version))
+        base, _, seqnum = m.groups()
+        if seqnum is None:
+            # Native version - we can just attach a version number
+            seqnum = 0
+        seqnum = int(seqnum) + 1
+        return '{base}-{sep}{num}'.format(base=base, sep=identifier, num=seqnum)
+
+    def create_update(self, reason, version=None):
+        if version is None:
+            version = self.new_tag(identifier=self.config['update_id'])
+        changelog_name = os.path.join(self.path, 'changelog')
+        with open(changelog_name, 'rb') as fh:
+            changelog = Changelog(fh)
+        fn, email = self._get_author()
+
+        changelog.new_block(
+            package=self.short_name,
+            version=version,
+            distributions=self.config['distribution'],
+            urgency='high',
+            author="{} <{}>".format(fn, email),
+            date=time.strftime("%a, %e %b %Y %H:%M:%S %z"),
+        )
+        changelog.add_change('')
+        for line in reason.split("\n"):
+            changelog.add_change('   {}'.format(line))
+        changelog.add_change('')
+        with open(changelog_name, 'w') as fh:
+            changelog.write_to_open_file(fh)
+
+    def _get_author(self):
+        """
+        Gets the author name and email for an update.
+        It uses the DEBFULLNAME and DEBEMAIL env variables if available, else
+        it reverts to using git configuration data. Finally, a fallback is used,
+        provided by the docker-pkg configuration.
+        """
+        name = self.config['fallback_author']
+        email = self.config['fallback_email']
+        git_failed = False
+        if 'DEBFULLNAME' in os.environ:
+            name = os.environ['DEBFULLNAME']
+        else:
+            try:
+                name = subprocess.check_output(
+                    ['git', 'config', '--get', 'user.name']).rstrip().decode('utf-8')
+            except Exception:
+                git_failed = True
+
+        if 'DEBEMAIL' in os.environ:
+            email = os.environ['DEBEMAIL']
+        elif not git_failed:
+            email = subprocess.check_output(
+                ['git', 'config', '--get', 'user.email']).rstrip().decode('utf-8')
+        return (name, email)
 
     @property
     def depends(self):

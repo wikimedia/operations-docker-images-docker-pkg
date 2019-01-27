@@ -37,6 +37,7 @@ class ImageFSM(object):
         self.config = config
         self.image = image.DockerImage(root, client, self.config, nocache=nocache, pull=pull)
         self.state = self.STATE_TO_BUILD
+        self.children = set()
         if pull:
             # If we allow docker to pull images from the registry,
             # we want to know if an image is already available and
@@ -124,6 +125,28 @@ class ImageFSM(object):
                 log.error('Failed to publish image %s:%s: %s', self.image, tag, e)
                 self.state = self.STATE_ERROR
                 break
+
+    def add_child(self, img):
+        """Declare another image as child of the current one"""
+        self.children.add(img)
+
+    def all_children(self):
+        """
+        Report all images that are born of the current one.
+
+        The result will include the current image, and all of their direct and
+        indirect children. No logical loop protection is present here, nor the
+        ordering is guaranteed in any ways.
+
+        Returns: (list) A list of all images that include the current one.
+        """
+        children = {self}
+        # This just needs to be a list of images without
+        # duplicates.
+        for child in self.children:
+            children.update(child.all_children())
+
+        return list(children)
 
 
 class DockerBuilder(object):
@@ -248,6 +271,39 @@ class DockerBuilder(object):
         if img in self._build_chain:
             raise RuntimeError('Dependency loop detected for image {image}'.format(image=img.image))
         self._build_chain.append(img)
+
+    def _build_dependencies(self):
+        """Builds the dependency tree between the images."""
+        for img in self.all_images:
+            for dep in img.image.depends:
+                dep_img = self._img_from_name(dep)
+                if dep_img is None:
+                    raise RuntimeError(
+                        'Image {} (dependency of {}) not found'.format(dep, img.label))
+                dep_img.add_child(img)
+
+    def images_to_update(self):
+        """Returns a list of images to update"""
+        self._build_dependencies()
+        images_to_update = set()
+        for img in self.all_images:
+            if self._matches_glob(img):
+                for to_update in img.all_children():
+                    images_to_update.add(to_update)
+        return images_to_update
+
+    def update_images(self, images, reason, baseimg, version=None):
+        dep_reason = 'Refresh for update in parent image {}:\n{}'.format(
+            baseimg, reason)
+        for img in images:
+            if img.image.short_name == baseimg:
+                # For the base image, we use the version chosen
+                # on the command line, if any.
+                img.image.create_update(reason, version=version)
+            else:
+                # On the other images, we use a generated change reason instead
+                # and we only increment the minor version automatically.
+                img.image.create_update(dep_reason)
 
     def _img_from_name(self, name):
         """Retrieve an image given a name"""

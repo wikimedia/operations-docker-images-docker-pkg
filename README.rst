@@ -10,27 +10,34 @@ unified way, providing out of the box some useful functions:
 * Support for automatically use build images for creating artifacts
 * Changelog based versioning (with nightly builds support)
 * Templating of common operations like installing packages, or image references
+* Helpers for build environment maintenance: simple purging of images
+  and an utility to update recursively the changelogs
 
 Overview
 --------
 
-``docker-pkg`` accepts one mandatory parameter, the directory to scan for
-docker images:
+``docker-pkg`` can perform three fundamental actions:
+* ``build`` [BUILD_OPTS] <directory> which builds the images in the directory
+* ``prune`` [PRUNE_OPTS] <directory> which prunes old images from the
+local daemon
+* ``update`` [UPDATE_OPTS] <name> <directory> will create a changelog
+entry for <name> and all its dependent images so that they will be
+rebuilt with the next build.
 
-.. code-block:: console
+as can be seen, in all cases we provide the software with a directory
+where our image definitions are located.
 
-    $ docker-pkg <directory>
-
-and will then scan that directory recursively for directories containing:
+``docker-pkg`` will thscan that directory recursively for directories containing:
 
 * A ``Dockerfile.template`` file
 * A debian-formatted ``changelog``
 
 Based on information in the changelog, on configuration options, and on what is
-found in the Dockerfile.template, a Dockerfile is generated and an image is
-built out of it. Name and tag of this image will be derived by the last entry in
-the changelog.
+found in the Dockerfile.template, a Dockerfile is generated.
 
+If you chose to build images, that dockerfile (and the content of the
+directory) are used to build an image. Name and tag of this image will
+be derived by the last entry in the changelog.
 Finally, the built images will be pushed to the configured registry, when
 authentication credentials are provided.
 
@@ -57,7 +64,7 @@ templates, but also affect how ``docker-pkg`` works:
 Build the images
 ----------------
 
-This is as simple as launching ``docker-pkg``, indicating as a first argument
+This is as simple as launching ``docker-pkg build``, indicating as next argument
 the directory to scan for dockerfiles.
 
 The build script will search the directory you provided it for Docker image
@@ -77,9 +84,10 @@ it's mandatory that you add your changelog entry there. For most containers, a
 debian-like versioning is a good idea to keep into account the security updates
 that might happen.
 
-In case you run ``docker-pkg`` with the command-line switch ``--nightly``, a nightly
-build will be performed, appending the current date and time to the tag defined in the
-changelog of each image, and thus triggering a rebuild of all images.
+In case you run ``docker-pkg build`` with the command-line switch
+``--nightly``, a nightly build will be performed, appending the
+current date and time to the tag defined in the changelog of each image, and
+thus triggering a rebuild of all images.
 
 The templating system
 ---------------------
@@ -133,3 +141,25 @@ Dockerfile build context, so you can use those.
 Every build is performed in a temporary directory, and any leftovers of the
 build (so the build image, any container spawned out of it, etc) will be taken
 care of by the program.
+
+Prune
+-----
+When you build images often, you'll end up with a sizable amount of
+wasted disk space by hosting old image builds on your
+system. ``docker-pkg prune`` will remove from the local docker daemon
+all those images that are contained in `<directory>` at version
+different than the most recent entry in the changelog file.
+
+Update
+------
+It's pretty common we need to rebuild a base image and having to
+rebuild all the images that depend upon it. ``docker-pkg update``
+partially automates the process creating a changelog entry with a
+pre-baked message for each of those images. this will trigger a
+rebuild of those images next time ``docker-pkg build`` is launched.
+
+.. code-block: console
+   $ docker-pkg update --reason 'CVE-XYZ isArrayish RCE' nodejs images
+   # This will first check images that are not on the registry or
+   # locally built and build/publish them
+   $ docker-pkg build

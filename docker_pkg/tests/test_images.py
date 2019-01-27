@@ -1,3 +1,4 @@
+import copy
 import datetime
 import os
 import unittest
@@ -7,6 +8,7 @@ from unittest.mock import MagicMock, patch, mock_open, call
 import docker.errors
 
 import docker_pkg.image as image
+from docker_pkg.cli import defaults
 from docker_pkg import dockerfile
 from docker_pkg.tests import fixtures_dir
 
@@ -301,3 +303,50 @@ class TestDockerImage(unittest.TestCase):
         bi.extract.side_effect = ValueError('test')
         self.assertFalse(self.image._build_artifacts())
         bi.clean.assert_called_with()
+
+    def test_new_tag(self):
+        # First test, check a native tag
+        self.image.metadata['tag'] = '0.1.2'
+        self.assertEqual(self.image.new_tag(), '0.1.2-s1')
+        # Now an image with several security changes
+        self.image.metadata['tag'] = '0.1.2-1-s8'
+        self.assertEqual(self.image.new_tag(), '0.1.2-1-s9')
+        # With a different separator
+        self.image.metadata['tag'] = '0.1.2-1'
+        self.assertEqual(self.image.new_tag(identifier=''), '0.1.2-2')
+        # Finally an invalid version number. Please note this is valid in strict
+        # debian terms but I don't consider this a particular limitation, as
+        # image creators should use SemVer.
+        # Moreover, tildes are not admitted in docker image tags.
+        self.image.metadata['tag'] = '0.1.2-1~wmf2'
+        self.assertRaises(ValueError, self.image.new_tag)
+
+    def test_get_author(self):
+        self.image.config['fallback_author'] = 'joe'
+        self.image.config['fallback_email'] = 'admin@example.org'
+        os.environ['DEBFULLNAME'] = 'Foo'
+        os.environ['DEBEMAIL'] = 'test@example.com'
+        self.assertEqual(self.image._get_author(), ('Foo', 'test@example.com'))
+        # Unset debemail
+        del os.environ['DEBEMAIL']
+        with patch('subprocess.check_output') as co:
+            co.return_value = b'other@example.com\n'
+            self.assertEqual(self.image._get_author(), ('Foo', 'other@example.com'))
+
+
+    def test_create_change(self):
+        m = mock_open(read_data='')
+        self.image.config['fallback_author'] = 'joe'
+        self.image.config['fallback_email'] = 'test@example.org'
+        self.image.config['distribution'] = 'pinkunicorn'
+        self.image.config['update_id'] = 'L'
+        with patch('docker_pkg.image.open', m, create=True) as opn:
+            handle = opn.return_value
+            changelog = os.path.join(self.basedir, 'changelog')
+            with patch('docker_pkg.image.Changelog') as dch:
+                self.image.create_update('test')
+                dch.assert_called_with(handle)
+                opn.assert_any_call(changelog, 'rb')
+                opn.assert_any_call(changelog, 'w')
+                assert dch.return_value.new_block.called
+                dch.return_value.write_to_open_file.assert_called_with(handle)
