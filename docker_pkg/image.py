@@ -245,7 +245,9 @@ class DockerImage(DockerImageBase):
         deps = []
         try:
             with open(os.path.join(path, 'control'), 'rb') as fh:
-                for pkg in Packages.iter_paragraphs(fh):
+                # deb822 might uses python-apt however it is not available
+                # on pypi. Thus skip using apt_pkg.
+                for pkg in Packages.iter_paragraphs(fh, use_apt_pkg=False):
                     for k in ['Build-Depends', 'Depends']:
                         deps_str = pkg.get(k, '')
                         if deps_str:
