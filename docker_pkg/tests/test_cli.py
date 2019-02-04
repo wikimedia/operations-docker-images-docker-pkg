@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 
 import docker_pkg.cli
 from docker_pkg.tests import fixtures_dir
@@ -51,3 +51,14 @@ class TestCli(unittest.TestCase):
         test_args.pop()
         args = docker_pkg.cli.parse_args(test_args)
         self.assertEqual(args.action, 'build')
+
+    def test_read_config(self):
+        m = mock_open(read_data='registry: docker-reg.example.org')
+        with patch('docker_pkg.cli.open', m, create=True):
+            conf = docker_pkg.cli.read_config('/dev/null')
+        self.assertIn('registry', conf)
+        self.assertEqual('docker-reg.example.org', conf['registry'])
+
+        self.assertNotEqual('docker-reg.example.org',
+            docker_pkg.cli.defaults['registry'],
+            'docker_pkg.cli.defaults must not be altered')

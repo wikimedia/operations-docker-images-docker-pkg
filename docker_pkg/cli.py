@@ -45,11 +45,13 @@ def parse_args(args):
 
 
 def read_config(configfile):
+    config = defaults.copy()
+
     with open(configfile, 'rb') as fh:
         raw_config = yaml.safe_load(fh)
     if raw_config:
-        defaults.update(raw_config)
-    return defaults
+        config.update(raw_config)
+    return config
 
 
 def main(args=None):
