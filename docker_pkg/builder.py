@@ -85,8 +85,7 @@ class ImageFSM(object):
             self.state = self.STATE_ERROR
 
     def add_tag(self, tag):
-        print('adding_tag %s' % tag)
-        print("Call: %s %s %s" % (self.image.image, self.image.name, tag))
+        log.debug('Adding tag %s to image %s', tag, self.image.image)
         self.image.docker.api.tag(self.image.image, self.image.name, tag)
 
     def publish(self):

@@ -160,9 +160,13 @@ class DockerImageBase(object):
         def stream_to_log(logger, chunk):
             if 'error' in chunk:
                 error_msg = chunk['errorDetail']['message'].rstrip()
-                error_code = chunk['errorDetail']['code']
-                logger.error('Build command failed with exit code %s: %s',
-                             error_code, error_msg)
+                error_code = chunk['errorDetail'].get('code', 0)
+                if error_code != 0:
+
+                    logger.error('Build command failed with exit code %s: %s',
+                                 error_code, error_msg)
+                else:
+                    logger.error('Build failed: $s', error_msg)
                 raise docker.errors.BuildError('Building image {} failed'.format(self.image))
             elif 'stream' in chunk:
                 logger.info(chunk['stream'].rstrip())
@@ -273,10 +277,9 @@ class DockerImage(DockerImageBase):
                 super().build(self.build_path)
                 success = True
         except (docker.errors.BuildError, docker.errors.APIError) as e:
-            log.error("Building image %s failed - check your Dockerfile: %s", self.image,
-                      e, exc_info=True)
+            log.exception("Building image %s failed - check your Dockerfile: %s", self.image, e)
         except Exception as e:
-            log.error('Unexpected error building image %s: %s', self.image, e)
+            log.exception('Unexpected error building image %s: %s', self.image, e)
         finally:
             self._clean_build_environment()
         return success
@@ -298,10 +301,10 @@ class DockerImage(DockerImageBase):
             self.build_image.extract('/build', self.build_path)
             success = True
         except (docker.errors.BuildError, docker.errors.APIError) as e:
-            log.error("Building image %s failed - check your Dockerfile: %s", self.build_image,
-                      e, exc_info=True)
+            log.exception("Building image %s failed - check your Dockerfile: %s",
+                          self.build_image, e)
         except Exception as e:
-            log.error('Unexpected error buildining artifacts for image %s: %s', self.image, e)
+            log.exception('Unexpected error buildining artifacts for image %s: %s', self.image, e)
         finally:
             self.build_image.clean()
         return success
