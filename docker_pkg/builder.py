@@ -120,7 +120,13 @@ class DockerBuilder(object):
         self.config = config
         self.glob = selection
         self.nocache = nocache
-        self.pull = pull
+        # Protect against trying to pull your own images from dockerhub.
+        if self.config.get('registry') is None:
+            if pull:
+                log.warning('Not pulling images remotely as no registry is defined.')
+            self.pull = False
+        else:
+            self.pull = pull
         self.client = docker.from_env(version='auto', timeout=600)
         # The build chain is the list of images we need to build,
         # while the other list is just a list of images we have a reference to
@@ -204,6 +210,9 @@ class DockerBuilder(object):
 
     def publish(self):
         """Publish all images to the configured registry"""
+        if self.config.get('registry') is None:
+            log.warning('Cannot publish if no registry is defined')
+            return
         if not all([self.config['username'], self.config['password']]):
             log.warning('Cannot publish images if both username and password are not set')
             return
