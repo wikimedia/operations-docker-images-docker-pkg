@@ -179,6 +179,10 @@ class DockerImageBase(object):
                     logger.debug("%s\t%s: %s ", chunk['status'], chunk['id'], chunk['progress'])
                 else:
                     logger.info(chunk['status'])
+            elif 'aux' in chunk:
+                # Extra information not presented to the user such as image
+                # digests or image id after building.
+                return
             else:
                 logger.warning('Unhandled stream chunk: %s' % chunk)
 
