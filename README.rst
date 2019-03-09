@@ -78,7 +78,7 @@ debian-like versioning is a good idea to keep into account the security updates
 that might happen.
 
 In case you run ``docker-pkg`` with the command-line switch ``--nightly``, a nightly
-build will be performed, appending the current date to the tag defined in the
+build will be performed, appending the current date and time to the tag defined in the
 changelog of each image, and thus triggering a rebuild of all images.
 
 The templating system

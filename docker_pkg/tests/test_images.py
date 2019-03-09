@@ -168,7 +168,7 @@ class TestDockerImage(unittest.TestCase):
         self.assertEqual(self.image.depends, [])
         image.DockerImage.is_nightly = True
         img = image.DockerImage(self.basedir, self.docker, self.config)
-        date = datetime.date.today().strftime(img.NIGHTLY_BUILD_FORMAT)
+        date = datetime.datetime.now().strftime(img.NIGHTLY_BUILD_FORMAT)
         self.assertEqual(img.tag, '0.0.1-{}'.format(date))
         image.DockerImage.is_nightly = False
 
