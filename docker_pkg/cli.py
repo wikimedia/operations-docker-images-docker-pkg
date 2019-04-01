@@ -4,6 +4,7 @@ Command line interface
 
 import argparse
 import logging
+import os
 import sys
 
 import yaml
@@ -60,6 +61,9 @@ def read_config(configfile):
 
 
 def main(args=None):
+    # Force requests to use the system cert bundle.
+    if 'REQUESTS_CA_BUNDLE' not in os.environ:
+        os.environ['REQUESTS_CA_BUNDLE'] = '/etc/ssl/certs/ca-certificates.crt'
     log_to_stdout = True
     if args is None:
         args = parse_args(sys.argv[1:])
@@ -80,6 +84,7 @@ def main(args=None):
     config = read_config(args.configfile)
     application = builder.DockerBuilder(
         args.directory, config, args.select, args.nocache, args.pull)
+    dockerfile.TemplateEngine.setup(application.config, application.known_images)
     if args.action == 'build':
         build(application, log_to_stdout)
     elif args.action == 'prune':
@@ -89,7 +94,6 @@ def main(args=None):
 
 
 def build(application, log_to_stdout):
-    dockerfile.TemplateEngine.setup(application.config, application.known_images)
     print("== Step 0: scanning {d} ==".format(d=application.root))
     application.scan(max_workers=application.config['scan_workers'])
     print("Will build the following images:")
@@ -127,5 +131,5 @@ def prune(application):
 
     print("== Step 1: pruning images")
     for img in application.all_images:
-        if not img.prune():
+        if not img.image.prune():
             print("* Errors pruning old images for {}".format(img.label))
