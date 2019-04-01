@@ -146,10 +146,20 @@ class DockerBuilder(object):
         else:
             self.pull = pull
         self.client = docker.from_env(version='auto', timeout=600)
+        # Perform a login if the credentials are provided
+        if all([self.config.get('username'),
+                self.config.get('password'), self.config.get('registry')]):
+            self.client.login(
+                username=self.config['username'],
+                password=self.config['password'],
+                registry='https://{}'.format(self.config['registry']),
+                reauth=True
+            )
         # The build chain is the list of images we need to build,
         # while the other list is just a list of images we have a reference to
         #
         # TODO: fetch the available images on our default registry too?
+        # TODO: clarify what base_images is needed for?
         self.known_images = set(config.get('base_images', []))
         self.all_images = set()
         self._build_chain = []
