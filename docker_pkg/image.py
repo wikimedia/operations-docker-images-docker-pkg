@@ -170,7 +170,7 @@ class DockerImageBase(object):
                     logger.error('Build command failed with exit code %s: %s',
                                  error_code, error_msg)
                 else:
-                    logger.error('Build failed: $s', error_msg)
+                    logger.error('Build failed: %s', error_msg)
                 raise docker.errors.BuildError('Building image {} failed'.format(self.image))
             elif 'stream' in chunk:
                 logger.info(chunk['stream'].rstrip())
