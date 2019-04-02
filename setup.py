@@ -50,7 +50,7 @@ setup(
     name='docker_pkg',
     packages=find_packages(exclude=['*.tests', '*.tests.*']),
     platforms=['GNU/Linux', 'BSD', 'MacOSX'],
-    version='1.1.3',
+    version='1.1.4',
     url='https://github.com/wikimedia/operations-docker-images-docker-pkg/',
     zip_safe=False,
 )
