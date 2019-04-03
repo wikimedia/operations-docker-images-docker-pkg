@@ -41,7 +41,7 @@ class DockerImageBase(object):
     """Lower-level management of docker images"""
     def __init__(
         self, name, tag, client, config, directory, tpl, build_path,
-            nocache=True, pull=True
+            nocache=True
     ):
         self.config = config
         self.docker = client
@@ -51,10 +51,10 @@ class DockerImageBase(object):
         self.dockerfile_tpl = tpl
         self.build_path = build_path
         self.nocache = nocache
-        self.pull = pull
 
     @property
     def name(self):
+        """Canonical Image name including registry and namespace"""
         return image_fullname(self.short_name, self.config)
 
     @property
@@ -68,6 +68,7 @@ class DockerImageBase(object):
 
     @property
     def image(self):
+        """Image label <name:tag>"""
         return "{name}:{tag}".format(name=self.name, tag=self.tag)
 
     def prune(self):
@@ -196,7 +197,7 @@ class DockerImageBase(object):
                     tag=self.image,
                     nocache=self.nocache,
                     rm=True,
-                    pull=self.pull,
+                    pull=False,  # We manage pulling ourselves
                     buildargs=self.buildargs,
                     decode=True):
                 stream_to_log(image_logger, line)
@@ -225,7 +226,7 @@ class DockerImage(DockerImageBase):
 
     def __init__(
         self, directory, client, config,
-        nocache=True, pull=True
+        nocache=True
     ):
         self.metadata = {}
         self.read_metadata(directory)
@@ -233,7 +234,7 @@ class DockerImage(DockerImageBase):
         # The build path will be set later
         super().__init__(
             self.metadata['name'], self.metadata['tag'],
-            client, config, directory, tpl, None, nocache, pull
+            client, config, directory, tpl, None, nocache
         )
         # Now instantiate the build image, if needed
         if os.path.isfile(os.path.join(directory, self.BUILD_TEMPLATE)):

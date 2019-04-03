@@ -122,12 +122,11 @@ class TestDockerImageBase(unittest.TestCase):
             decode=True,
             nocache=True,
             rm=True,
-            pull=True,
+            pull=False,
             buildargs={}
         )
-        # Check that nocache, pull are correctly passed down
+        # Check that nocache is correctly passed down
         self.image.nocache = False
-        self.image.pull = False
         with patch('docker_pkg.image.open', m, create=True):
             self.image.build('/tmp', filename='test')
         self.docker.api.build.assert_called_with(
@@ -141,7 +140,6 @@ class TestDockerImageBase(unittest.TestCase):
             decode=True
         )
 
-        self.image.nocache = False
         self.image.dockerfile_tpl.render.assert_called_with(foo='bar')
         m.assert_called_with('/tmp/test', 'w')
         # An empty dockerfile will raise an exception

@@ -164,6 +164,42 @@ class TestDockerBuilder(unittest.TestCase):
         self.assertEqual('foobar-server:0.0.1~alpha1', result[1].label)
         self.assertEqual('error', result[1].state)
 
+    @patch('docker_pkg.image.DockerImage.build')
+    @patch('docker_pkg.builder.DockerBuilder.pull_dependencies')
+    def test_build_pull(self, pull, build):
+        self.builder.pull = True
+
+        def pull_result(img):
+            if img.label == 'foobar-server:0.0.1~alpha1':
+                img.state = ImageFSM.STATE_ERROR
+
+        pull.side_effect = pull_result
+        img0 = ImageFSM(os.path.join(fixtures_dir, 'foo-bar'), self.builder.client, self.builder.config)
+        img1 = ImageFSM(os.path.join(fixtures_dir, 'with_build'), self.builder.client, self.builder.config)
+        img0.state = ImageFSM.STATE_TO_BUILD
+        img1.state = ImageFSM.STATE_TO_BUILD
+        build.return_value = True
+        self.builder.all_images = set([img0, img1])
+        result = [r for r in self.builder.build()]
+        print(result)
+        pull.assert_has_calls([call(img0), call(img1)])
+        assert build.call_count == 1
+
+    def test_pull_images(self):
+        img0 = ImageFSM(os.path.join(fixtures_dir, 'foo-bar'), self.builder.client, self.builder.config)
+        img1 = ImageFSM(os.path.join(fixtures_dir, 'with_build'), self.builder.client, self.builder.config)
+        img0.state = ImageFSM.STATE_BUILT
+        img1.state = ImageFSM.STATE_TO_BUILD
+        self.builder.all_images = set([img0, img1])
+        # img1 is locally built, but not published. We should not pull anything
+        self.builder.pull_dependencies(img1)
+        assert self.builder.client.images.pull.call_count == 0
+        # now if it's published, we should pull it instead
+        img0.state = ImageFSM.STATE_PUBLISHED
+        self.builder.pull_dependencies(img1)
+        self.builder.client.images.pull.assert_called_with(img0.image.name)
+
+
     def test_images_in_state(self):
         img0 = ImageFSM(os.path.join(fixtures_dir, 'foo-bar'), self.builder.client, self.builder.config)
         img1 = ImageFSM(os.path.join(fixtures_dir, 'with_build'), self.builder.client, self.builder.config)
@@ -185,7 +221,7 @@ class TestDockerBuilder(unittest.TestCase):
         img1.state = 'built'
         self.builder.all_images = set([img0, img1])
         self.assertEqual([], [r for r in self.builder.publish()])
-        self.builder.client.api.tag.assert_not_called()
+        assert self.builder.client.api.tag.call_count == 0
         self.builder.config['username'] = 'foo'
         self.builder.config['password'] = 'bar'
 

@@ -35,7 +35,7 @@ class ImageFSM(object):
 
     def __init__(self, root, client, config, nocache=True, pull=True):
         self.config = config
-        self.image = image.DockerImage(root, client, self.config, nocache=nocache, pull=pull)
+        self.image = image.DockerImage(root, client, self.config, nocache=nocache)
         self.state = self.STATE_TO_BUILD
         self.children = set()
         if pull:
@@ -272,6 +272,20 @@ class DockerBuilder(object):
             raise RuntimeError('Dependency loop detected for image {image}'.format(image=img.image))
         self._build_chain.append(img)
 
+    def pull_dependencies(self, fsm):
+        """Pulls all dependencies from the docker registry, if they're present"""
+        for name in fsm.image.depends:
+            dep_img = self._img_from_name(name)
+            # TODO: fail if dependency is not found?
+            if dep_img is None or dep_img.state != ImageFSM.STATE_PUBLISHED:
+                continue
+            try:
+                log.info("Pulling image %s, dependency of %s", dep_img.image.name)
+                self.client.images.pull(dep_img.image.name)
+            except docker.errors.APIError as e:
+                log.exception("Failed to pull image %s: %s", dep_img.image.name, e)
+                fsm.state = ImageFSM.STATE_ERROR
+
     def _build_dependencies(self):
         """Builds the dependency tree between the images."""
         for img in self.all_images:
@@ -315,7 +329,14 @@ class DockerBuilder(object):
     def build(self):
         """Build the images in the build chain"""
         for img in self.build_chain:
-            img.build()
+            # If pull is defined, call pull_dependencies()
+            if self.pull:
+                self.pull_dependencies(img)
+            # If we are in a different state now, just return
+            # the image
+            if img.state == ImageFSM.STATE_TO_BUILD:
+                img.build()
+
             yield img
 
     def publish(self):
