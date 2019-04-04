@@ -260,7 +260,7 @@ class TestDockerImage(unittest.TestCase):
         self.image._create_build_environment = MagicMock()
         self.image._clean_build_environment = MagicMock()
         self.image.build_path = 'test'
-        parent.side_effect = docker.errors.BuildError('foo!')
+        parent.side_effect = docker.errors.BuildError('foo!', None)
         self.assertFalse(self.image.build())
         self.image._create_build_environment.assert_called_with()
         self.image._clean_build_environment.assert_called_with()
@@ -293,7 +293,7 @@ class TestDockerImage(unittest.TestCase):
         bi = MagicMock(autospec=image.DockerImageBase)
         self.image.build_image = bi
         # If the build fails at different times, the build is maked as failed.
-        bi.build.side_effect = docker.errors.BuildError('foo-build')
+        bi.build.side_effect = docker.errors.BuildError('foo-build', None)
         self.assertFalse(self.image._build_artifacts())
         bi.extract.assert_not_called()
         bi.clean.assert_called_with()
