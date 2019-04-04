@@ -105,6 +105,7 @@ class TestDockerBuilder(unittest.TestCase):
         d = self.img_metadata('d', '1.0', ['a', 'c'])
         self.builder.all_images = set([a, b, c, d])
         self.assertListEqual(self.builder.build_chain, [a, b, c, d])
+        self.assertListEqual(self.builder.prune_chain(), [d, c, b, a])
         # throw an unrelated thing in the mix
         e = self.img_metadata('e', '1.0', [])
         self.builder.all_images.add(e)
@@ -136,6 +137,24 @@ class TestDockerBuilder(unittest.TestCase):
         self.builder.all_images.add(self.img_metadata('c', '1.0', ['d']))
         with self.assertRaises(RuntimeError):
             self.builder.build_chain
+
+    def test_prune_chain(self):
+        """Test that the prune chain behaves as expected."""
+        # Simple test for a linear dependency tree
+        a = self.img_metadata('a1', '1.0', [])
+        b = self.img_metadata('b1', '1.0', ['a1'])
+        c = self.img_metadata('c2', '1.0', ['b1'])
+        d = self.img_metadata('d2', '1.0', ['a1', 'c2'])
+        self.builder.all_images = set([a, b, c, d])
+        pc = self.builder.prune_chain()
+        self.assertListEqual(self.builder.prune_chain(), [d, c, b, a])
+        # verify they're all set as TO_BUILD
+        for fsm in pc:
+            self.assertEqual(fsm.state, ImageFSM.STATE_TO_BUILD)
+        # verify a glob correctly selects only the selected images
+        self.builder.glob = "*2:*"
+        pc = self.builder.prune_chain()
+        self.assertEqual(pc, [d, c])
 
     def test_build_dependencies(self):
         # Simple test for a linear dependency tree

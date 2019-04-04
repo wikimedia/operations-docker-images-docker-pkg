@@ -176,12 +176,15 @@ def prune(application, nightly):
         image.DockerImage.NIGHTLY_BUILD_FORMAT = nightly
     print("== Step 0: scanning {d} ==".format(d=application.root))
     application.scan(max_workers=application.config['scan_workers'])
+    # Let's peform a trick to be able to exploit the build_chain
     print("Will prune old versions of the following images:")
-    for fsm in application.all_images:
+    pc = application.prune_chain()
+    for fsm in pc:
         print("* {image}".format(image=fsm.label))
 
     print("== Step 1: pruning images")
-    for fsm in application.all_images:
+    for fsm in pc:
+        print("* Pruning old versions of {}".format(fsm.label))
         if not fsm.image.prune():
             print("* Errors pruning old images for {}".format(fsm.label))
 

@@ -261,6 +261,18 @@ class DockerBuilder(object):
                 self._add_deps(img)
         return self._build_chain
 
+    def prune_chain(self):
+        """Returns the images that need to be pruned, in the correct order."""
+        # This is a hack. We're abusing the build chain concept.
+        for fsm in self.all_images:
+            if self._matches_glob(fsm):
+                fsm.state = ImageFSM.STATE_TO_BUILD
+            elif fsm.state == ImageFSM.STATE_TO_BUILD:
+                fsm.state = ImageFSM.STATE_BUILT
+        chain = self.build_chain
+        chain.reverse()
+        return chain
+
     def _add_deps(self, img):
         if img in self._build_chain:
             # the image is already in the build chain, no reason to re-add it.
