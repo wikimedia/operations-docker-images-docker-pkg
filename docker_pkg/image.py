@@ -221,7 +221,7 @@ class DockerImage(DockerImageBase):
 
     TEMPLATE = 'Dockerfile.template'
     BUILD_TEMPLATE = 'Dockerfile.build.template'
-    NIGHTLY_BUILD_FORMAT = '%Y%m%d-%H%M%S'
+    NIGHTLY_BUILD_FORMAT = '%Y%m%d'
     is_nightly = False
 
     def __init__(

@@ -159,6 +159,7 @@ class TestDockerImage(unittest.TestCase):
         dockerfile.TemplateEngine.setup(self.config, [])
         self.basedir = os.path.join(fixtures_dir, 'foo-bar')
         self.image = image.DockerImage(self.basedir, self.docker, self.config)
+        image.DockerImage.is_nightly = False
 
     def test_init(self):
         self.assertEqual(self.image.tag, '0.0.1')

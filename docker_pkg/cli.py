@@ -45,7 +45,9 @@ def parse_args(args):
     # Cli usage: docker-pkg -c test.yaml --info build --select "*python*" images_dir
     build = actions.add_parser('build', help="Build images (and publish them to the registry)")
     build_opts = build.add_argument_group('options for docker build')
-    build_opts.add_argument('--nightly', action='store_true', help='Prepare a nightly build')
+    nightly = build_opts.add_argument_group(title='nightly').add_mutually_exclusive_group()
+    nightly.add_argument('--nightly', action='store_true', help='Prepare a nightly build')
+    nightly.add_argument('--snapshot', action='store_true', help='Create a snapshot build')
     build_opts.add_argument('--use-cache', dest='nocache', action='store_false',
                             help='Do use Docker cache when building the images')
     build_opts.add_argument('--no-pull', dest='pull', action='store_false',
@@ -59,8 +61,8 @@ def parse_args(args):
     prune.add_argument('--select', metavar='GLOB',
                        help='A glob pattern for the images to build, must match name:tag',
                        default=None)
-    prune.add_argument('--nightly', action='store_true',
-                       help='Prune all but the latest nightly build')
+    prune.add_argument('--nightly', default=False, metavar='NIGHTLY_IDENTIFIER',
+                       help='Prune all but the nightly build indicated in the argument')
 
     # Create an update for a specific image and all of their children.
     # Cli usage: docker-pkg update python3-dev --reason "Adding newer pip version" images_dir
@@ -113,7 +115,14 @@ def main(args=None):
     nocache = args_table.get('nocache', True)
     # Prune and update don't need to pull!
     pull = args_table.get('pull', False)
-    image.DockerImage.is_nightly = args_table.get('nightly', False)
+    nightly_opt = args_table.get('nightly', False)
+    is_snapshot = args_table.get('snapshot', False)
+    if nightly_opt:
+        image.DockerImage.is_nightly = True
+    elif is_snapshot:
+        # We're building a snapshot.
+        image.DockerImage.is_nightly = True
+        image.DockerImage.NIGHTLY_BUILD_FORMAT = '%Y%m%d-%H%M%S'
     if args.mode == 'update':
         # For updates, we only allow literal names.
         select = '*{}:*'.format(args.select)
@@ -122,9 +131,10 @@ def main(args=None):
         args.directory, config, select, nocache, pull)
     dockerfile.TemplateEngine.setup(application.config, application.known_images)
     if args.mode == 'build':
+
         build(application, log_to_stdout)
     elif args.mode == 'prune':
-        prune(application)
+        prune(application, nightly_opt)
     elif args.mode == 'update':
         update(application, args.reason, args.select, args.version)
     else:
@@ -160,7 +170,10 @@ def build(application, log_to_stdout):
         print("You can see the logs at ./docker-pkg-build.log")
 
 
-def prune(application):
+def prune(application, nightly):
+    # cheat dockerimage into using a fixed format
+    if nightly:
+        image.DockerImage.NIGHTLY_BUILD_FORMAT = nightly
     print("== Step 0: scanning {d} ==".format(d=application.root))
     application.scan(max_workers=application.config['scan_workers'])
     print("Will prune old versions of the following images:")

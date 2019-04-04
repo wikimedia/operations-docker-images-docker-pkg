@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 
 import docker_pkg.cli
+from docker_pkg.image import DockerImage
 from docker_pkg.tests import fixtures_dir
 
 
@@ -30,6 +31,11 @@ class TestCli(unittest.TestCase):
             args.info = True
             docker_pkg.cli.main(args)
             b.assert_called_with(application, True)
+        args.snapshot = True
+        with patch('docker_pkg.cli.build') as b:
+            docker_pkg.cli.main(args)
+            self.assertEqual(DockerImage.is_nightly, True)
+            self.assertEqual(DockerImage.NIGHTLY_BUILD_FORMAT, '%Y%m%d-%H%M%S')
 
     @patch('docker_pkg.builder.DockerBuilder')
     def test_main_prune(self, builder):
@@ -40,9 +46,10 @@ class TestCli(unittest.TestCase):
         args.select = 'python*'
         args.mode = 'prune'
         args.info = False
+        args.nightly = '20190503'
         with patch('docker_pkg.cli.prune') as p:
             docker_pkg.cli.main(args)
-            p.assert_called_with(application)
+            p.assert_called_with(application, '20190503')
             builder.assert_called_with(fixtures_dir, docker_pkg.cli.defaults,
                                        'python*', True, False)
 
