@@ -9,15 +9,37 @@ from docker_pkg import dockerfile, image
 from docker_pkg.tests import fixtures_dir
 
 
+class TestImageFSM(unittest.TestCase):
+    def setUp(self):
+        dockerfile.TemplateEngine.setup({}, [])
+
+    @patch('docker.from_env')
+    def test_init(self, client):
+        img = ImageFSM(
+            os.path.join(fixtures_dir, 'foo-bar'),
+            client,
+            {'seed_image': 'test'}
+        )
+        self.assertIsInstance(img.image, image.DockerImage)
+        self.assertEqual(img.children, set())
+        # Reinitializing the same image raises an error
+        self.assertRaises(RuntimeError, ImageFSM,
+                          os.path.join(fixtures_dir, 'foo-bar'),
+                          client,  {'seed_image': 'test'})
+
 class TestDockerBuilder(unittest.TestCase):
     def setUp(self):
         dockerfile.TemplateEngine.setup({}, [])
         with patch('docker.from_env'):
             self.builder = DockerBuilder(fixtures_dir, {'seed_image': 'test'})
+        ImageFSM._instances = []
 
     def img_metadata(self, name, tag, deps):
         img = ImageFSM(os.path.join(fixtures_dir, 'foo-bar'), self.builder.client, self.builder.config)
         img.image.short_name = name
+        # Clean up the images registry before initiating images this way.
+        ImageFSM._instances.pop()
+        ImageFSM._instances.append(name)
         img.image.tag = tag
         img.image.metadata['depends'] = deps
         img.state = ImageFSM.STATE_TO_BUILD
@@ -35,6 +57,7 @@ class TestDockerBuilder(unittest.TestCase):
         db = DockerBuilder('test', {'base_images': ['foo:0.0.1', 'bar:1.0.0']})
         self.assertEqual(db.known_images, {'foo:0.0.1', 'bar:1.0.0'})
         self.assertIsNone(db.glob)
+
 
     def test_scan(self):
         with patch('docker_pkg.image.DockerImageBase.exists') as mocker:
@@ -181,7 +204,6 @@ class TestDockerBuilder(unittest.TestCase):
         build.return_value = True
         self.builder.all_images = set([img0, img1])
         result = [r for r in self.builder.build()]
-        print(result)
         pull.assert_has_calls([call(img0), call(img1)])
         assert build.call_count == 1
 

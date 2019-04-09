@@ -33,9 +33,17 @@ class ImageFSM(object):
     STATES = [STATE_PUBLISHED, STATE_BUILT, STATE_TO_BUILD, STATE_ERROR]
     'List of possible states'
 
+    _instances = []
+
     def __init__(self, root, client, config, nocache=True, pull=True):
         self.config = config
         self.image = image.DockerImage(root, client, self.config, nocache=nocache)
+        # Check that we're not initializing a second instance of the FSM for the same
+        # docker image. Please note this should happen before we initialize the object,
+        # but we need self.image.name to be accessible to make this check.
+        if self.image.short_name in ImageFSM._instances:
+            raise RuntimeError(
+                'Trying to reinstantiate the FSM for image {}'.format(self.image.short_name))
         self.state = self.STATE_TO_BUILD
         self.children = set()
         if pull:
@@ -57,6 +65,8 @@ class ImageFSM(object):
                 self.state = self.STATE_PUBLISHED
             else:
                 self.state = self.STATE_BUILT
+        # Register this FSM in the list of instances.
+        ImageFSM._instances.append(self.image.short_name)
 
     @property
     def label(self):
