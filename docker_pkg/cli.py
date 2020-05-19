@@ -23,7 +23,8 @@ defaults = {
     'fallback_author': 'Author',
     'fallback_email': 'email@domain',
     'distribution': 'wikimedia',
-    'update_id': 's'
+    'update_id': 's',
+    'ca_bundle': None
 }
 
 ACTIONS = ['build', 'prune', 'update']
@@ -88,9 +89,6 @@ def read_config(configfile):
 
 
 def main(args=None):
-    # Force requests to use the system cert bundle.
-    if 'REQUESTS_CA_BUNDLE' not in os.environ:
-        os.environ['REQUESTS_CA_BUNDLE'] = '/etc/ssl/certs/ca-certificates.crt'
     log_to_stdout = True
     if args is None:
         args = parse_args(sys.argv[1:])
@@ -108,6 +106,9 @@ def main(args=None):
         )
 
     config = read_config(args.configfile)
+    # Force requests to use the configured ca bundle.
+    if config['ca_bundle'] is not None:
+        os.environ['REQUESTS_CA_BUNDLE'] = config['ca_bundle']
     # Args mangling.
 
     select = args.select

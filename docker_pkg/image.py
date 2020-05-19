@@ -282,7 +282,7 @@ class DockerImage(DockerImageBase):
         previous_version = self.metadata['tag']
         m = re_new_version.match(previous_version)
         if not m:
-            raise ValueError("Was not able to match version {}}".format(previous_version))
+            raise ValueError("Was not able to match version {}".format(previous_version))
         base, _, seqnum = m.groups()
         if seqnum is None:
             # Native version - we can just attach a version number
