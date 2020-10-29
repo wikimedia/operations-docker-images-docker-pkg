@@ -264,7 +264,7 @@ class DockerImage(DockerImageBase):
             # no control file. we can live with that for now.
             pass
         self.metadata['depends'] = deps
-        self.metadata['tag'] = str(changelog.get_version())
+        self.metadata['tag'] = str(changelog.version)
         if self.is_nightly:
             self.metadata['tag'] += '-{date}'.format(
                 date=datetime.datetime.now().strftime(self.NIGHTLY_BUILD_FORMAT))
