@@ -11,23 +11,23 @@ unified way, providing out of the box some useful functions:
 * Changelog based versioning (with nightly builds support)
 * Templating of common operations like installing packages, or image references
 * Helpers for build environment maintenance: simple purging of images
-  and an utility to update recursively the changelogs
+  and a utility to recursively update changelogs
 
 Overview
 --------
 
 ``docker-pkg`` can perform three fundamental actions:
+
 * ``build`` [BUILD_OPTS] <directory> which builds the images in the directory
 * ``prune`` [PRUNE_OPTS] <directory> which prunes old images from the
-local daemon
+  local daemon
 * ``update`` [UPDATE_OPTS] <name> <directory> will create a changelog
-entry for <name> and all its dependent images so that they will be
-rebuilt with the next build.
+  entry for <name> and all its dependent images so that they will be
+  rebuilt with the next build.
 
-as can be seen, in all cases we provide the software with a directory
-where our image definitions are located.
-
-``docker-pkg`` will thscan that directory recursively for directories containing:
+As can be seen, in all cases we provide ``docker-pkg`` with a
+directory where our image definitions are located.  ``docker-pkg``
+will scan that directory recursively for directories containing:
 
 * A ``Dockerfile.template`` file
 * A debian-formatted ``changelog``
@@ -36,8 +36,8 @@ Based on information in the changelog, on configuration options, and on what is
 found in the Dockerfile.template, a Dockerfile is generated.
 
 If you chose to build images, that dockerfile (and the content of the
-directory) are used to build an image. Name and tag of this image will
-be derived by the last entry in the changelog.
+directory) are used to build an image. The name and tag of an image will
+be derived by the last entry its changelog.
 Finally, the built images will be pushed to the configured registry, when
 authentication credentials are provided.
 
@@ -158,7 +158,8 @@ partially automates the process creating a changelog entry with a
 pre-baked message for each of those images. this will trigger a
 rebuild of those images next time ``docker-pkg build`` is launched.
 
-.. code-block: console
+.. code-block:: console
+
    $ docker-pkg update --reason 'CVE-XYZ isArrayish RCE' nodejs images
    # This will first check images that are not on the registry or
    # locally built and build/publish them
@@ -169,7 +170,8 @@ Troubleshooting
 
 When building images on macOS, you may see an error like this:
 
-.. code-block: console
+.. code-block:: console
+
    OSError: Could not find a suitable TLS CA certificate bundle, invalid path: /etc/ssl/certs/ca-certificates.crt
 
 To work around this, open Keychain Access, navigate to System Roots -> Certificates, select all certificates and go to File -> Export Items. Select the export format as Certificate (.cer). Save the file to a temporary location, then ``mv`` it to ``/etc/ssl/certs/ca-certificates.crt``.
