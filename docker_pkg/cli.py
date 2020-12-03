@@ -191,7 +191,7 @@ def prune(application, nightly):
 
 
 def update(application, reason, selected, version):
-    print("== Step 0: scanning {d}")
+    print("== Step 0: scanning {d}".format(d=application.root))
     application.scan()
     to_update = application.images_to_update()
     print("Will update the following images: ")
