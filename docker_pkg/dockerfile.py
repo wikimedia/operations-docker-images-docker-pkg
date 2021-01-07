@@ -16,7 +16,7 @@ class TemplateEngine(object):
 
     @classmethod
     def setup(cls, config, known_images):
-        cls.env = Environment(extensions=['jinja2.ext.do'])
+        cls.env = Environment(extensions=["jinja2.ext.do"])
         cls.config = config
         cls.known_images = known_images
         cls.setup_filters()
@@ -30,15 +30,17 @@ class TemplateEngine(object):
             image_name = image_fullname(image_name, cls.config)
 
             for img_with_tag in cls.known_images:
-                name, tag = img_with_tag.split(':')
+                name, tag = img_with_tag.split(":")
                 if image_name == name:
                     return img_with_tag
             raise ValueError("Image {name} not found".format(name=image_name))
-        cls.env.filters['image_tag'] = find_image_tag
+
+        cls.env.filters["image_tag"] = find_image_tag
 
     @classmethod
     def setup_apt_install(cls):
-        t = Template("""
+        t = Template(
+            """
 {%- if http_proxy -%}
 echo 'Acquire::http::Proxy \"{{ http_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy \\
     && apt-get update {{ apt_options }} \\
@@ -50,18 +52,21 @@ apt-get update {{ apt_options }} \\
 {%- if http_proxy %}
     && rm -f /etc/apt/apt.conf.d/80_proxy \\
 {%- endif %}
-    && apt-get clean && rm -rf /var/lib/apt/lists/* """)
+    && apt-get clean && rm -rf /var/lib/apt/lists/* """
+        )
 
         def apt_install(pkgs):
             # Allow people to write easier to read newline separated package
             # lists by turning them into space separated ones for apt
-            pkgs = pkgs.replace('\n', ' ')
+            pkgs = pkgs.replace("\n", " ")
             return t.render(packages=pkgs, **cls.config)
-        cls.env.filters['apt_install'] = apt_install
+
+        cls.env.filters["apt_install"] = apt_install
 
     @classmethod
     def setup_apt_remove(cls):
-        t = Template("""
+        t = Template(
+            """
 {%- if http_proxy -%}
 echo 'Acquire::http::Proxy \"{{ http_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy  && \\
 {%- endif -%}
@@ -69,11 +74,13 @@ echo 'Acquire::http::Proxy \"{{ http_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy
 {%- if http_proxy %}
     && rm -f /etc/apt/apt.conf.d/80_proxy \\
 {%- endif %}
-    && apt-get clean && rm -rf /var/lib/apt/lists/* """)
+    && apt-get clean && rm -rf /var/lib/apt/lists/* """
+        )
 
         def apt_remove(pkgs):
             return t.render(packages=pkgs, **cls.config)
-        cls.env.filters['apt_remove'] = apt_remove
+
+        cls.env.filters["apt_remove"] = apt_remove
 
     def __init__(self, path):
         self.env.loader = FileSystemLoader(path)

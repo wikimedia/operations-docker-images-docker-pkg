@@ -39,10 +39,8 @@ def pushd(dirname):
 
 class DockerImageBase(object):
     """Lower-level management of docker images"""
-    def __init__(
-        self, name, tag, client, config, directory, tpl, build_path,
-            nocache=True
-    ):
+
+    def __init__(self, name, tag, client, config, directory, tpl, build_path, nocache=True):
         self.config = config
         self.docker = client
         self.short_name = name
@@ -60,7 +58,7 @@ class DockerImageBase(object):
     @property
     def safe_name(self):
         """A filesystem-friendly identified"""
-        return self.short_name.replace('/', '-')
+        return self.short_name.replace("/", "-")
 
     def __str__(self):
         """String representation is <image_name>:<tag>"""
@@ -81,14 +79,14 @@ class DockerImageBase(object):
         for image in self.docker.images.list(self.name):
             # If any of the labels correspond to what declared in the
             # changelog, keep it
-            image_aliases = image.attrs['RepoTags']
+            image_aliases = image.attrs["RepoTags"]
             if not any([(alias == self.image) for alias in image_aliases]):
                 try:
-                    img_id = image.attrs['Id']
+                    img_id = image.attrs["Id"]
                     log.info('Removing image "%s" (Id: %s)', image_aliases[0], img_id)
                     self.docker.images.remove(img_id)
                 except Exception as e:
-                    log.error('Error removing image %s: %s', img_id, str(e))
+                    log.error("Error removing image %s: %s", img_id, str(e))
                     success = False
         return success
 
@@ -102,16 +100,16 @@ class DockerImageBase(object):
 
     def extract(self, src, dst):
         """Extract a path from an image to the filesystem"""
-        container_name = '{name}-ephemeral-{rand}'.format(
+        container_name = "{name}-ephemeral-{rand}".format(
             name=self.short_name,
-            rand="".join(random.choice(string.ascii_letters) for x in range(5))
+            rand="".join(random.choice(string.ascii_letters) for x in range(5)),
         )
         success = False
         try:
             container = self.docker.containers.create(
                 self.image,
                 name=container_name,
-                network_disabled=False  # see https://github.com/docker/docker-py/issues/1195
+                network_disabled=False,  # see https://github.com/docker/docker-py/issues/1195
             )
             archive = container.get_archive(src)
             # Force the data to be read, so the docker connection will be freed
@@ -127,7 +125,7 @@ class DockerImageBase(object):
         finally:
             self.remove_container(container_name)
             if not success:
-                raise RuntimeError('Building artifacts failed')
+                raise RuntimeError("Building artifacts failed")
 
     def remove_container(self, name):
         """Removes the named container if it exists."""
@@ -140,13 +138,17 @@ class DockerImageBase(object):
 
     @property
     def buildargs(self):
-        proxy = self.config.get('http_proxy', None)
+        proxy = self.config.get("http_proxy", None)
         if proxy is None:
             return {}
-        return {'http_proxy': proxy, 'https_proxy': proxy,
-                'HTTP_PROXY': proxy, 'HTTPS_PROXY': proxy}
+        return {
+            "http_proxy": proxy,
+            "https_proxy": proxy,
+            "HTTP_PROXY": proxy,
+            "HTTPS_PROXY": proxy,
+        }
 
-    def build(self, build_path, filename='Dockerfile'):
+    def build(self, build_path, filename="Dockerfile"):
         """
         Builds the image
 
@@ -160,46 +162,48 @@ class DockerImageBase(object):
         dockerfile = self.dockerfile_tpl.render(**self.config)
         log.info("Generated dockerfile for %s:\n%s", self.image, dockerfile)
         if dockerfile is None:
-            raise RuntimeError('The generated dockerfile is empty')
-        with open(os.path.join(build_path, filename), 'w') as fh:
+            raise RuntimeError("The generated dockerfile is empty")
+        with open(os.path.join(build_path, filename), "w") as fh:
             fh.write(dockerfile)
 
         def stream_to_log(logger, chunk):
-            if 'error' in chunk:
-                error_msg = chunk['errorDetail']['message'].rstrip()
-                error_code = chunk['errorDetail'].get('code', 0)
+            if "error" in chunk:
+                error_msg = chunk["errorDetail"]["message"].rstrip()
+                error_code = chunk["errorDetail"].get("code", 0)
                 if error_code != 0:
 
-                    logger.error('Build command failed with exit code %s: %s',
-                                 error_code, error_msg)
+                    logger.error(
+                        "Build command failed with exit code %s: %s", error_code, error_msg
+                    )
                 else:
-                    logger.error('Build failed: %s', error_msg)
-                raise docker.errors.BuildError('Building image {} failed'.format(self.image))
-            elif 'stream' in chunk:
-                logger.info(chunk['stream'].rstrip())
-            elif 'status' in chunk:
-                if 'progress' in chunk:
-                    logger.debug("%s\t%s: %s ", chunk['status'], chunk['id'], chunk['progress'])
+                    logger.error("Build failed: %s", error_msg)
+                raise docker.errors.BuildError("Building image {} failed".format(self.image))
+            elif "stream" in chunk:
+                logger.info(chunk["stream"].rstrip())
+            elif "status" in chunk:
+                if "progress" in chunk:
+                    logger.debug("%s\t%s: %s ", chunk["status"], chunk["id"], chunk["progress"])
                 else:
-                    logger.info(chunk['status'])
-            elif 'aux' in chunk:
+                    logger.info(chunk["status"])
+            elif "aux" in chunk:
                 # Extra information not presented to the user such as image
                 # digests or image id after building.
                 return
             else:
-                logger.warning('Unhandled stream chunk: %s' % chunk)
+                logger.warning("Unhandled stream chunk: %s" % chunk)
 
         image_logger = log.getChild(self.image)
         with pushd(build_path):
             for line in self.docker.api.build(
-                    path=build_path,
-                    dockerfile=filename,
-                    tag=self.image,
-                    nocache=self.nocache,
-                    rm=True,
-                    pull=False,  # We manage pulling ourselves
-                    buildargs=self.buildargs,
-                    decode=True):
+                path=build_path,
+                dockerfile=filename,
+                tag=self.image,
+                nocache=self.nocache,
+                rm=True,
+                pull=False,  # We manage pulling ourselves
+                buildargs=self.buildargs,
+                decode=True,
+            ):
                 stream_to_log(image_logger, line)
         return self.image
 
@@ -219,65 +223,73 @@ class DockerImage(DockerImageBase):
     be built first, and artifacts will be extracted from it
     """
 
-    TEMPLATE = 'Dockerfile.template'
-    BUILD_TEMPLATE = 'Dockerfile.build.template'
-    NIGHTLY_BUILD_FORMAT = '%Y%m%d'
+    TEMPLATE = "Dockerfile.template"
+    BUILD_TEMPLATE = "Dockerfile.build.template"
+    NIGHTLY_BUILD_FORMAT = "%Y%m%d"
     is_nightly = False
 
-    def __init__(
-        self, directory, client, config,
-        nocache=True
-    ):
+    def __init__(self, directory, client, config, nocache=True):
         self.metadata = {}
         self.read_metadata(directory)
         tpl = dockerfile.from_template(directory, self.TEMPLATE)
         # The build path will be set later
         super().__init__(
-            self.metadata['name'], self.metadata['tag'],
-            client, config, directory, tpl, None, nocache
+            self.metadata["name"],
+            self.metadata["tag"],
+            client,
+            config,
+            directory,
+            tpl,
+            None,
+            nocache,
         )
         # Now instantiate the build image, if needed
         if os.path.isfile(os.path.join(directory, self.BUILD_TEMPLATE)):
             build_tpl = dockerfile.from_template(directory, self.BUILD_TEMPLATE)
             self.build_image = DockerImageBase(
-                '{name}-build'.format(name=self.short_name), self.tag,
-                self.docker, config, self.path, build_tpl, None)
+                "{name}-build".format(name=self.short_name),
+                self.tag,
+                self.docker,
+                config,
+                self.path,
+                build_tpl,
+                None,
+            )
         else:
             self.build_image = None
 
     def read_metadata(self, path):
-        with open(os.path.join(path, 'changelog'), 'rb') as fh:
+        with open(os.path.join(path, "changelog"), "rb") as fh:
             changelog = Changelog(fh)
         deps = []
         try:
-            with open(os.path.join(path, 'control'), 'rb') as fh:
+            with open(os.path.join(path, "control"), "rb") as fh:
                 # deb822 might uses python-apt however it is not available
                 # on pypi. Thus skip using apt_pkg.
                 for pkg in Packages.iter_paragraphs(fh, use_apt_pkg=False):
-                    for k in ['Build-Depends', 'Depends']:
-                        deps_str = pkg.get(k, '')
+                    for k in ["Build-Depends", "Depends"]:
+                        deps_str = pkg.get(k, "")
                         if deps_str:
                             # TODO: support versions? not sure it's needed
-                            deps.extend(re.split(r'\s*,[\s\n]*', deps_str))
+                            deps.extend(re.split(r"\s*,[\s\n]*", deps_str))
         except FileNotFoundError:
             # no control file. we can live with that for now.
             pass
-        self.metadata['depends'] = deps
-        self.metadata['tag'] = str(changelog.version)
+        self.metadata["depends"] = deps
+        self.metadata["tag"] = str(changelog.version)
         if self.is_nightly:
-            self.metadata['tag'] += '-{date}'.format(
-                date=datetime.datetime.now().strftime(self.NIGHTLY_BUILD_FORMAT))
-        self.metadata['name'] = str(changelog.get_package())
+            self.metadata["tag"] += "-{date}".format(
+                date=datetime.datetime.now().strftime(self.NIGHTLY_BUILD_FORMAT)
+            )
+        self.metadata["name"] = str(changelog.get_package())
 
-    def new_tag(self, identifier='s'):
+    def new_tag(self, identifier="s"):
         """Create a new version tag from the currently read tag"""
         # Note: this only supports a subclass of all valid debian tags.
         if identifier is None:
-            identifier = ''
-        re_new_version = re.compile(
-            r'^([\d\-\.]+?)(-{}(\d+))?$'.format(identifier)
-        )
-        previous_version = self.metadata['tag']
+            identifier = ""
+        re_new_version = re.compile(r"^([\d\-\.]+?)(-{}(\d+))?$".format(identifier))
+        previous_version = self.metadata["tag"]
         m = re_new_version.match(previous_version)
         if not m:
             raise ValueError("Was not able to match version {}".format(previous_version))
@@ -286,29 +298,29 @@ class DockerImage(DockerImageBase):
             # Native version - we can just attach a version number
             seqnum = 0
         seqnum = int(seqnum) + 1
-        return '{base}-{sep}{num}'.format(base=base, sep=identifier, num=seqnum)
+        return "{base}-{sep}{num}".format(base=base, sep=identifier, num=seqnum)
 
     def create_update(self, reason, version=None):
         if version is None:
-            version = self.new_tag(identifier=self.config['update_id'])
-        changelog_name = os.path.join(self.path, 'changelog')
-        with open(changelog_name, 'rb') as fh:
+            version = self.new_tag(identifier=self.config["update_id"])
+        changelog_name = os.path.join(self.path, "changelog")
+        with open(changelog_name, "rb") as fh:
             changelog = Changelog(fh)
         fn, email = self._get_author()
 
         changelog.new_block(
             package=self.short_name,
             version=version,
-            distributions=self.config['distribution'],
-            urgency='high',
+            distributions=self.config["distribution"],
+            urgency="high",
             author="{} <{}>".format(fn, email),
             date=time.strftime("%a, %e %b %Y %H:%M:%S %z"),
         )
-        changelog.add_change('')
+        changelog.add_change("")
         for line in reason.split("\n"):
-            changelog.add_change('   {}'.format(line))
-        changelog.add_change('')
-        with open(changelog_name, 'w') as fh:
+            changelog.add_change("   {}".format(line))
+        changelog.add_change("")
+        with open(changelog_name, "w") as fh:
             changelog.write_to_open_file(fh)
 
     def _get_author(self):
@@ -318,28 +330,34 @@ class DockerImage(DockerImageBase):
         it reverts to using git configuration data. Finally, a fallback is used,
         provided by the docker-pkg configuration.
         """
-        name = self.config['fallback_author']
-        email = self.config['fallback_email']
+        name = self.config["fallback_author"]
+        email = self.config["fallback_email"]
         git_failed = False
-        if 'DEBFULLNAME' in os.environ:
-            name = os.environ['DEBFULLNAME']
+        if "DEBFULLNAME" in os.environ:
+            name = os.environ["DEBFULLNAME"]
         else:
             try:
-                name = subprocess.check_output(
-                    ['git', 'config', '--get', 'user.name']).rstrip().decode('utf-8')
+                name = (
+                    subprocess.check_output(["git", "config", "--get", "user.name"])
+                    .rstrip()
+                    .decode("utf-8")
+                )
             except Exception:
                 git_failed = True
 
-        if 'DEBEMAIL' in os.environ:
-            email = os.environ['DEBEMAIL']
+        if "DEBEMAIL" in os.environ:
+            email = os.environ["DEBEMAIL"]
         elif not git_failed:
-            email = subprocess.check_output(
-                ['git', 'config', '--get', 'user.email']).rstrip().decode('utf-8')
+            email = (
+                subprocess.check_output(["git", "config", "--get", "user.email"])
+                .rstrip()
+                .decode("utf-8")
+            )
         return (name, email)
 
     @property
     def depends(self):
-        return self.metadata['depends']
+        return self.metadata["depends"]
 
     def build(self):
         """
@@ -351,13 +369,13 @@ class DockerImage(DockerImageBase):
         self._create_build_environment()
         try:
             if self._build_artifacts():
-                log.info('%s - buiding the image', self.image)
+                log.info("%s - buiding the image", self.image)
                 super().build(self.build_path)
                 success = True
         except (docker.errors.BuildError, docker.errors.APIError) as e:
             log.exception("Building image %s failed - check your Dockerfile: %s", self.image, e)
         except Exception as e:
-            log.exception('Unexpected error building image %s: %s', self.image, e)
+            log.exception("Unexpected error building image %s: %s", self.image, e)
         finally:
             self._clean_build_environment()
         return success
@@ -372,30 +390,31 @@ class DockerImage(DockerImageBase):
             return True
         success = False
         try:
-            log.info('%s - building artifacts', self.image)
-            log.info('%s - creating the build image %s', self.image, self.build_image)
-            self.build_image.build(self.build_path, filename='Dockerfile.build')
-            log.info('%s - extracting artifacts from the build image')
-            self.build_image.extract('/build', self.build_path)
+            log.info("%s - building artifacts", self.image)
+            log.info("%s - creating the build image %s", self.image, self.build_image)
+            self.build_image.build(self.build_path, filename="Dockerfile.build")
+            log.info("%s - extracting artifacts from the build image")
+            self.build_image.extract("/build", self.build_path)
             success = True
         except (docker.errors.BuildError, docker.errors.APIError) as e:
-            log.exception("Building image %s failed - check your Dockerfile: %s",
-                          self.build_image, e)
+            log.exception(
+                "Building image %s failed - check your Dockerfile: %s", self.build_image, e
+            )
         except Exception as e:
-            log.exception('Unexpected error buildining artifacts for image %s: %s', self.image, e)
+            log.exception("Unexpected error buildining artifacts for image %s: %s", self.image, e)
         finally:
             self.build_image.clean()
         return success
 
     def _dockerignore(self):
-        dockerignore = os.path.join(self.path, '.dockerignore')
+        dockerignore = os.path.join(self.path, ".dockerignore")
         ignored = []
         if not os.path.isfile(dockerignore):
             return None
-        with open(dockerignore, 'r') as fh:
+        with open(dockerignore, "r") as fh:
             for line in fh.readlines():
                 # WARNING: does NOT support inline comments
-                if line.startswith('#'):
+                if line.startswith("#"):
                     continue
                 clean_line = line.strip()
                 if not clean_line:
@@ -408,14 +427,15 @@ class DockerImage(DockerImageBase):
 
         def _filter(src, files):
             return [f for f in files if (os.path.join(src, f) in ignored)]
+
         return _filter
 
     def _create_build_environment(self):
         if self.build_path is not None:
             # Build path already created, assume it's all good
             return
-        base = tempfile.mkdtemp(prefix='docker-pkg-{name}'.format(name=self.safe_name))
-        build_path = os.path.join(base, 'context')
+        base = tempfile.mkdtemp(prefix="docker-pkg-{name}".format(name=self.safe_name))
+        build_path = os.path.join(base, "context")
 
         shutil.copytree(self.path, build_path, ignore=self._dockerignore())
         self.build_path = build_path
@@ -424,5 +444,5 @@ class DockerImage(DockerImageBase):
         if self.build_path is not None:
             base = os.path.dirname(self.build_path)
             if os.path.isdir(base):
-                log.info('Removing build context %s', base)
+                log.info("Removing build context %s", base)
                 shutil.rmtree(base)
