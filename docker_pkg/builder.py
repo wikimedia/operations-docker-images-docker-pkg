@@ -188,11 +188,15 @@ class DockerBuilder(object):
                 registry='https://{}'.format(self.config['registry']),
                 reauth=True
             )
+        # We create three lists here:
+        # all_images is a set of all the ImageFSMs generated for the images we find in our scan
+        # known_images is a list of full image labels (so, fullname:tag) that is a sum of what we find in our scan
+        # and images we add to the configuration as *already known* images.
+        # _build_chain is a list of the ImageFSM objects we need to build, in the correct build sequence.
         # The build chain is the list of images we need to build,
         # while the other list is just a list of images we have a reference to
         #
         # TODO: fetch the available images on our default registry too?
-        # TODO: clarify what base_images is needed for?
         self.known_images = set(config.get('base_images', []))
         self.all_images = set()
         self._build_chain = []
