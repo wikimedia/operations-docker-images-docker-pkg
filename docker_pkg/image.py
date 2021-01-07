@@ -246,7 +246,6 @@ class DockerImage(DockerImageBase):
             self.build_image = None
 
     def read_metadata(self, path):
-        metadata = {}
         with open(os.path.join(path, 'changelog'), 'rb') as fh:
             changelog = Changelog(fh)
         deps = []
@@ -269,7 +268,6 @@ class DockerImage(DockerImageBase):
             self.metadata['tag'] += '-{date}'.format(
                 date=datetime.datetime.now().strftime(self.NIGHTLY_BUILD_FORMAT))
         self.metadata['name'] = str(changelog.get_package())
-        return metadata
 
     def new_tag(self, identifier='s'):
         """Create a new version tag from the currently read tag"""
