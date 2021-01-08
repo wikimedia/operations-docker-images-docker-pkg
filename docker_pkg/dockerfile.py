@@ -4,19 +4,20 @@ Dockerfile.template processing
 The files are Jinja2 templates, the class provides built-in templates to ease
 writing Dockerfiles.
 """
+from typing import Any, Dict, Set
 
 from jinja2 import Environment, FileSystemLoader, Template
+
 from docker_pkg import image_fullname
 
 
-class TemplateEngine(object):
-    known_images = []
-    config = {}
-    env = None
+class TemplateEngine:
+    known_images: Set[str] = set()
+    config: Dict[str, Any] = {}
+    env: Environment = Environment(extensions=["jinja2.ext.do"])
 
     @classmethod
-    def setup(cls, config, known_images):
-        cls.env = Environment(extensions=["jinja2.ext.do"])
+    def setup(cls, config: Dict[str, Any], known_images: Set[str]):
         cls.config = config
         cls.known_images = known_images
         cls.setup_filters()
@@ -82,9 +83,9 @@ echo 'Acquire::http::Proxy \"{{ http_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy
 
         cls.env.filters["apt_remove"] = apt_remove
 
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.env.loader = FileSystemLoader(path)
 
 
-def from_template(path, name):
+def from_template(path: str, name: str) -> Template:
     return TemplateEngine(path).env.get_template(name)

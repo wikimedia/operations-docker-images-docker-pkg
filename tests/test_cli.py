@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock, mock_open
 
 import docker_pkg.cli
 from docker_pkg.image import DockerImage
-from docker_pkg.tests import fixtures_dir
+from tests import fixtures_dir
 
 
 class TestCli(unittest.TestCase):

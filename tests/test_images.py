@@ -10,7 +10,7 @@ import docker.errors
 import docker_pkg.image as image
 from docker_pkg.cli import defaults
 from docker_pkg import dockerfile
-from docker_pkg.tests import fixtures_dir
+from tests import fixtures_dir
 
 
 class AnyStringIncluding(str):
@@ -115,7 +115,7 @@ class TestDockerImageBase(unittest.TestCase):
         self.image.dockerfile_tpl = MagicMock()
         m = mock_open()
         with patch("docker_pkg.image.open", m, create=True):
-            self.image.build("/tmp", filename="test")
+            self.image.do_build("/tmp", filename="test")
         self.docker.api.build.assert_called_with(
             path="/tmp",
             dockerfile="test",
@@ -129,7 +129,7 @@ class TestDockerImageBase(unittest.TestCase):
         # Check that nocache is correctly passed down
         self.image.nocache = False
         with patch("docker_pkg.image.open", m, create=True):
-            self.image.build("/tmp", filename="test")
+            self.image.do_build("/tmp", filename="test")
         self.docker.api.build.assert_called_with(
             path="/tmp",
             dockerfile="test",
@@ -148,7 +148,7 @@ class TestDockerImageBase(unittest.TestCase):
         self.image.dockerfile_tpl.render.return_value = None
         self.docker.images.build.reset_mock()
         with self.assertRaises(RuntimeError):
-            self.image.build("/tmp", filename="test")
+            self.image.do_build("/tmp", filename="test")
         self.docker.images.build.assert_not_called()
 
 
@@ -231,7 +231,7 @@ class TestDockerImage(unittest.TestCase):
             self.image._clean_build_environment()
             rm.assert_called_with("/tmp/test")
 
-    @patch("docker_pkg.image.DockerImageBase.build")
+    @patch("docker_pkg.image.DockerImageBase.do_build")
     def test_build_ok(self, parent):
         # Test simple image with no build artifacts
         self.image._create_build_environment = MagicMock()
@@ -242,7 +242,7 @@ class TestDockerImage(unittest.TestCase):
         self.image._create_build_environment.assert_called_with()
         self.image._clean_build_environment.assert_called_with()
 
-    @patch("docker_pkg.image.DockerImageBase.build")
+    @patch("docker_pkg.image.DockerImageBase.do_build")
     def test_build_bad_artifacts(self, parent):
         # Test image with failed build artifacts fails and doesn't call a build
         self.image._create_build_environment = MagicMock()
@@ -253,7 +253,7 @@ class TestDockerImage(unittest.TestCase):
         self.image._create_build_environment.assert_called_with()
         self.image._clean_build_environment.assert_called_with()
 
-    @patch("docker_pkg.image.DockerImageBase.build")
+    @patch("docker_pkg.image.DockerImageBase.do_build")
     def test_build_exception(self, parent):
         # Test image that raises exception during a build is properly handled
         self.image._create_build_environment = MagicMock()
@@ -283,7 +283,7 @@ class TestDockerImage(unittest.TestCase):
         self.image.build_image = bi
         # A successful build
         self.assertTrue(self.image._build_artifacts())
-        bi.build.assert_called_with("test", filename="Dockerfile.build")
+        bi.do_build.assert_called_with("test", filename="Dockerfile.build")
         bi.extract.assert_called_with("/build", "test")
         bi.clean.assert_called_with()
 
@@ -292,7 +292,7 @@ class TestDockerImage(unittest.TestCase):
         bi = MagicMock(autospec=image.DockerImageBase)
         self.image.build_image = bi
         # If the build fails at different times, the build is maked as failed.
-        bi.build.side_effect = docker.errors.BuildError("foo-build", None)
+        bi.do_build.side_effect = docker.errors.BuildError("foo-build", None)
         self.assertFalse(self.image._build_artifacts())
         bi.extract.assert_not_called()
         bi.clean.assert_called_with()

@@ -13,19 +13,19 @@ import subprocess
 import tarfile
 import tempfile
 import time
-
 from contextlib import contextmanager
 from io import BytesIO
+from typing import Any, Dict, List, Optional, Tuple
 
 import docker.errors
 from debian.changelog import Changelog
 from debian.deb822 import Packages
 
-from docker_pkg import dockerfile, log, image_fullname
+from docker_pkg import dockerfile, image_fullname, log
 
 
 @contextmanager
-def pushd(dirname):
+def pushd(dirname: str):
     """
     Changes the current directory of execution.
     """
@@ -37,10 +37,20 @@ def pushd(dirname):
         os.chdir(cur_dir)
 
 
-class DockerImageBase(object):
+class DockerImageBase:
     """Lower-level management of docker images"""
 
-    def __init__(self, name, tag, client, config, directory, tpl, build_path, nocache=True):
+    def __init__(
+        self,
+        name: str,
+        tag: str,
+        client: docker.client.DockerClient,
+        config: Dict[str, Any],
+        directory: str,
+        tpl: dockerfile.Template,
+        build_path: Optional[str],
+        nocache: bool = True,
+    ):
         self.config = config
         self.docker = client
         self.short_name = name
@@ -51,25 +61,25 @@ class DockerImageBase(object):
         self.nocache = nocache
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Canonical Image name including registry and namespace"""
         return image_fullname(self.short_name, self.config)
 
     @property
-    def safe_name(self):
+    def safe_name(self) -> str:
         """A filesystem-friendly identified"""
         return self.short_name.replace("/", "-")
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation is <image_name>:<tag>"""
         return self.image
 
     @property
-    def image(self):
+    def image(self) -> str:
         """Image label <name:tag>"""
         return "{name}:{tag}".format(name=self.name, tag=self.tag)
 
-    def prune(self):
+    def prune(self) -> bool:
         """
         Removes all old versions of the image from the local docker daemon.
 
@@ -90,7 +100,7 @@ class DockerImageBase(object):
                     success = False
         return success
 
-    def exists(self):
+    def exists(self) -> bool:
         """True if the image is present locally, false otherwise"""
         try:
             self.docker.images.get(self.image)
@@ -98,8 +108,11 @@ class DockerImageBase(object):
         except docker.errors.ImageNotFound:
             return False
 
-    def extract(self, src, dst):
-        """Extract a path from an image to the filesystem"""
+    def extract(self, src: str, dst: Optional[str]):
+        """Extract a src path from an image to the filesystem directory dst"""
+        # This typically happens if you call "extract" before setting up the build environment.
+        if dst is None:
+            raise RuntimeError("The destination path for the extraction is not defined.")
         container_name = "{name}-ephemeral-{rand}".format(
             name=self.short_name,
             rand="".join(random.choice(string.ascii_letters) for x in range(5)),
@@ -127,7 +140,7 @@ class DockerImageBase(object):
             if not success:
                 raise RuntimeError("Building artifacts failed")
 
-    def remove_container(self, name):
+    def remove_container(self, name: str) -> bool:
         """Removes the named container if it exists."""
         try:
             container = self.docker.containers.get(name)
@@ -137,7 +150,7 @@ class DockerImageBase(object):
         return True
 
     @property
-    def buildargs(self):
+    def buildargs(self) -> Dict[str, str]:
         proxy = self.config.get("http_proxy", None)
         if proxy is None:
             return {}
@@ -148,7 +161,7 @@ class DockerImageBase(object):
             "HTTPS_PROXY": proxy,
         }
 
-    def build(self, build_path, filename="Dockerfile"):
+    def do_build(self, build_path: Optional[str], filename: str = "Dockerfile") -> str:
         """
         Builds the image
 
@@ -159,6 +172,9 @@ class DockerImageBase(object):
         Returns the image label
         Raises an error if the build fails
         """
+        # Typically happens if do_build is called before the build environment has been created
+        if build_path is None:
+            raise RuntimeError("No build path was defined.")
         dockerfile = self.dockerfile_tpl.render(**self.config)
         log.info("Generated dockerfile for %s:\n%s", self.image, dockerfile)
         if dockerfile is None:
@@ -228,8 +244,14 @@ class DockerImage(DockerImageBase):
     NIGHTLY_BUILD_FORMAT = "%Y%m%d"
     is_nightly = False
 
-    def __init__(self, directory, client, config, nocache=True):
-        self.metadata = {}
+    def __init__(
+        self,
+        directory: str,
+        client: docker.client.DockerClient,
+        config: Dict[str, Any],
+        nocache: bool = True,
+    ):
+        self.metadata: Dict[str, Any] = {}
         self.read_metadata(directory)
         tpl = dockerfile.from_template(directory, self.TEMPLATE)
         # The build path will be set later
@@ -246,7 +268,7 @@ class DockerImage(DockerImageBase):
         # Now instantiate the build image, if needed
         if os.path.isfile(os.path.join(directory, self.BUILD_TEMPLATE)):
             build_tpl = dockerfile.from_template(directory, self.BUILD_TEMPLATE)
-            self.build_image = DockerImageBase(
+            self.build_image: Optional[DockerImageBase] = DockerImageBase(
                 "{name}-build".format(name=self.short_name),
                 self.tag,
                 self.docker,
@@ -258,7 +280,7 @@ class DockerImage(DockerImageBase):
         else:
             self.build_image = None
 
-    def read_metadata(self, path):
+    def read_metadata(self, path: str):
         with open(os.path.join(path, "changelog"), "rb") as fh:
             changelog = Changelog(fh)
         deps = []
@@ -283,7 +305,7 @@ class DockerImage(DockerImageBase):
             )
         self.metadata["name"] = str(changelog.get_package())
 
-    def new_tag(self, identifier="s"):
+    def new_tag(self, identifier: Optional[str] = "s") -> str:
         """Create a new version tag from the currently read tag"""
         # Note: this only supports a subclass of all valid debian tags.
         if identifier is None:
@@ -296,11 +318,12 @@ class DockerImage(DockerImageBase):
         base, _, seqnum = m.groups()
         if seqnum is None:
             # Native version - we can just attach a version number
-            seqnum = 0
-        seqnum = int(seqnum) + 1
-        return "{base}-{sep}{num}".format(base=base, sep=identifier, num=seqnum)
+            patch_num = 1
+        else:
+            patch_num = int(seqnum) + 1
+        return "{base}-{sep}{num}".format(base=base, sep=identifier, num=patch_num)
 
-    def create_update(self, reason, version=None):
+    def create_update(self, reason: str, version: Optional[str] = None):
         if version is None:
             version = self.new_tag(identifier=self.config["update_id"])
         changelog_name = os.path.join(self.path, "changelog")
@@ -320,10 +343,10 @@ class DockerImage(DockerImageBase):
         for line in reason.split("\n"):
             changelog.add_change("   {}".format(line))
         changelog.add_change("")
-        with open(changelog_name, "w") as fh:
-            changelog.write_to_open_file(fh)
+        with open(changelog_name, "w") as tfh:
+            changelog.write_to_open_file(tfh)
 
-    def _get_author(self):
+    def _get_author(self) -> Tuple[str, str]:
         """
         Gets the author name and email for an update.
         It uses the DEBFULLNAME and DEBEMAIL env variables if available, else
@@ -356,10 +379,10 @@ class DockerImage(DockerImageBase):
         return (name, email)
 
     @property
-    def depends(self):
+    def depends(self) -> List[str]:
         return self.metadata["depends"]
 
-    def build(self):
+    def build(self) -> bool:
         """
         Build the image.
 
@@ -370,7 +393,7 @@ class DockerImage(DockerImageBase):
         try:
             if self._build_artifacts():
                 log.info("%s - buiding the image", self.image)
-                super().build(self.build_path)
+                super().do_build(self.build_path)
                 success = True
         except (docker.errors.BuildError, docker.errors.APIError) as e:
             log.exception("Building image %s failed - check your Dockerfile: %s", self.image, e)
@@ -380,7 +403,7 @@ class DockerImage(DockerImageBase):
             self._clean_build_environment()
         return success
 
-    def _build_artifacts(self):
+    def _build_artifacts(self) -> bool:
         """
         Build the artifacts from the build dockerfile.
 
@@ -392,7 +415,7 @@ class DockerImage(DockerImageBase):
         try:
             log.info("%s - building artifacts", self.image)
             log.info("%s - creating the build image %s", self.image, self.build_image)
-            self.build_image.build(self.build_path, filename="Dockerfile.build")
+            self.build_image.do_build(self.build_path, filename="Dockerfile.build")
             log.info("%s - extracting artifacts from the build image")
             self.build_image.extract("/build", self.build_path)
             success = True

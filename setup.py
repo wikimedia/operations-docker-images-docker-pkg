@@ -4,8 +4,8 @@
 import sys
 from setuptools import find_packages, setup
 
-if sys.version_info < (3, 4):
-    sys.exit("docker-pkg requires Python 3.4 or later")
+if sys.version_info < (3, 7):
+    sys.exit("docker-pkg requires Python 3.7 or later")
 
 long_description = """
 docker-pkg-images builds docker images from templates.
@@ -50,7 +50,7 @@ setup(
     name="docker_pkg",
     packages=find_packages(exclude=["*.tests", "*.tests.*"]),
     platforms=["GNU/Linux", "BSD", "MacOSX"],
-    version="2.0.0",
+    version="2.1.0",
     url="https://github.com/wikimedia/operations-docker-images-docker-pkg/",
     zip_safe=False,
 )

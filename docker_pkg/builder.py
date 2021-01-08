@@ -3,39 +3,45 @@ Workflow to process, build and publish image definitions
 """
 import fnmatch
 import os
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, Generator, List, Optional, Set
 
 import docker
 import requests
 
-from concurrent.futures import ThreadPoolExecutor
-
 from docker_pkg import image, log
 
 
-class ImageFSM(object):
+class ImageFSM:
     """
     Finite state machine
     """
 
-    STATE_PUBLISHED = 'published'
-    'Image is in the target Docker registry'
+    STATE_PUBLISHED = "published"
+    "Image is in the target Docker registry"
 
-    STATE_BUILT = 'built'
-    'Image is in the local Docker daemon'
+    STATE_BUILT = "built"
+    "Image is in the local Docker daemon"
 
-    STATE_TO_BUILD = 'to_build'
-    'Image could not be found in the registry or the daemon'
+    STATE_TO_BUILD = "to_build"
+    "Image could not be found in the registry or the daemon"
 
-    STATE_ERROR = 'error'
-    ('Error state, for examples a failure to build locally or to publish it '
-     'to the registry')
+    STATE_ERROR = "error"
+    ("Error state, for examples a failure to build locally or to publish it " "to the registry")
 
     STATES = [STATE_PUBLISHED, STATE_BUILT, STATE_TO_BUILD, STATE_ERROR]
-    'List of possible states'
+    "List of possible states"
 
-    _instances = []
+    _instances: List[str] = []
 
-    def __init__(self, root, client, config, nocache=True, pull=True):
+    def __init__(
+        self,
+        root: str,
+        client: docker.client.DockerClient,
+        config: Dict,
+        nocache: bool = True,
+        pull: bool = True,
+    ):
         self.config = config
         self.image = image.DockerImage(root, client, self.config, nocache=nocache)
         # Check that we're not initializing a second instance of the FSM for the same
@@ -43,9 +49,10 @@ class ImageFSM(object):
         # but we need self.image.name to be accessible to make this check.
         if self.image.short_name in ImageFSM._instances:
             raise RuntimeError(
-                'Trying to reinstantiate the FSM for image {}'.format(self.image.short_name))
+                "Trying to reinstantiate the FSM for image {}".format(self.image.short_name)
+            )
         self.state = self.STATE_TO_BUILD
-        self.children = set()
+        self.children: Set["ImageFSM"] = set()
         if pull:
             # If we allow docker to pull images from the registry,
             # we want to know if an image is already available and
@@ -69,36 +76,36 @@ class ImageFSM(object):
         ImageFSM._instances.append(self.image.short_name)
 
     @property
-    def label(self):
+    def label(self) -> str:
+        """The full label of the image, $registry/$ns/$name:$tag"""
         return self.image.image
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """The image full name, $registry/$ns/$name"""
         return self.image.name
 
-    def __repr__(self):
-        return 'ImageFSM({label}, {state})'.format(label=self.label, state=self.state)
+    def __repr__(self) -> str:
+        return "ImageFSM({label}, {state})".format(label=self.label, state=self.state)
 
-    def _is_published(self):
+    def _is_published(self) -> bool:
         """Check the registry for the image"""
-        proxies = {
-            'https': self.config.get('http_proxy', None)
-        }
-        if self.config.get('registry', False):
-            url = 'https://{registry}/v2'.format(registry=self.config['registry'])
+        proxies = {"https": self.config.get("http_proxy", None)}
+        if self.config.get("registry", False):
+            url = "https://{registry}/v2".format(registry=self.config["registry"])
         else:
             # TODO: support dockerhub somehow!
             # Probably will need a different strategy there.
             return False
-        if self.config.get('namespace', False):
-            url += '/{}'.format(self.config['namespace'])
-        url += '/{}'.format(self.image.short_name)
-        manifest_url = '{url}/manifests/{tag}'.format(
+        if self.config.get("namespace", False):
+            url += "/{}".format(self.config["namespace"])
+        url += "/{}".format(self.image.short_name)
+        manifest_url = "{url}/manifests/{tag}".format(
             url=url,
             tag=self.image.tag,
         )
         resp = requests.get(manifest_url, proxies=proxies)
-        return (resp.status_code == requests.codes.ok)
+        return resp.status_code == requests.codes.ok
 
     def build(self):
         """Build the image"""
@@ -106,41 +113,41 @@ class ImageFSM(object):
             return
         if self.state != self.STATE_TO_BUILD:
             raise ValueError(
-                'Image {image} is already built or failed to build'.format(image=self.image))
+                "Image {image} is already built or failed to build".format(image=self.image)
+            )
         if self.image.build():
-            self.add_tag('latest')
+            self.add_tag("latest")
             self.state = self.STATE_BUILT
         else:
             self.state = self.STATE_ERROR
 
-    def add_tag(self, tag):
-        log.debug('Adding tag %s to image %s', tag, self.image.image)
+    def add_tag(self, tag: str):
+        """Add a new tag to an image"""
+        log.debug("Adding tag %s to image %s", tag, self.image.image)
         self.image.docker.api.tag(self.image.image, self.image.name, tag)
 
     def publish(self):
         """Publish the image"""
         if self.state != self.STATE_BUILT:
             raise ValueError(
-                'Image {image} is not built, cannot publish it!'.format(image=self.image))
+                "Image {image} is not built, cannot publish it!".format(image=self.image)
+            )
         # Checking the config has these keys should be done before trying to publish
-        auth = {
-            'username': self.config['username'],
-            'password': self.config['password']
-        }
-        for tag in [self.image.tag, 'latest']:
+        auth = {"username": self.config["username"], "password": self.config["password"]}
+        for tag in [self.image.tag, "latest"]:
             try:
                 self.image.docker.api.push(self.image.name, tag, auth_config=auth)
                 self.state = self.STATE_PUBLISHED
             except docker.errors.APIError as e:
-                log.error('Failed to publish image %s:%s: %s', self.image, tag, e)
+                log.error("Failed to publish image %s:%s: %s", self.image, tag, e)
                 self.state = self.STATE_ERROR
                 break
 
-    def add_child(self, img):
+    def add_child(self, img: "ImageFSM"):
         """Declare another image as child of the current one"""
         self.children.add(img)
 
-    def all_children(self):
+    def all_children(self) -> List["ImageFSM"]:
         """
         Report all images that are born of the current one.
 
@@ -159,10 +166,17 @@ class ImageFSM(object):
         return list(children)
 
 
-class DockerBuilder(object):
+class DockerBuilder:
     """Scans the filesystem for image declarations, and build them"""
 
-    def __init__(self, directory, config, selection=None, nocache=True, pull=True):
+    def __init__(
+        self,
+        directory: str,
+        config: Dict[str, Any],
+        selection: Optional[str] = None,
+        nocache: bool = True,
+        pull: bool = True,
+    ):
         if os.path.isabs(directory):
             self.root = directory
         else:
@@ -172,42 +186,44 @@ class DockerBuilder(object):
         self.glob = selection
         self.nocache = nocache
         # Protect against trying to pull your own images from dockerhub.
-        if self.config.get('registry') is None:
+        if self.config.get("registry") is None:
             if pull:
-                log.warning('Not pulling images remotely as no registry is defined.')
+                log.warning("Not pulling images remotely as no registry is defined.")
             self.pull = False
         else:
             self.pull = pull
-        self.client = docker.from_env(version='auto', timeout=600)
+        self.client = docker.from_env(version="auto", timeout=600)
         # Perform a login if the credentials are provided
-        if all([self.config.get('username'),
-                self.config.get('password'), self.config.get('registry')]):
+        if all(
+            [self.config.get("username"), self.config.get("password"), self.config.get("registry")]
+        ):
             self.client.login(
-                username=self.config['username'],
-                password=self.config['password'],
-                registry='https://{}'.format(self.config['registry']),
-                reauth=True
+                username=self.config["username"],
+                password=self.config["password"],
+                registry="https://{}".format(self.config["registry"]),
+                reauth=True,
             )
         # We create three lists here:
         # all_images is a set of all the ImageFSMs generated for the images we find in our scan
-        # known_images is a list of full image labels (so, fullname:tag) that is a sum of what we find in our scan
-        # and images we add to the configuration as *already known* images.
-        # _build_chain is a list of the ImageFSM objects we need to build, in the correct build sequence.
+        # known_images is a list of full image labels (so, fullname:tag) that is a sum of what we
+        # find in our scan and images we add to the configuration as *already known* images.
+        # _build_chain is a list of the ImageFSM objects we need to build, in the correct build
+        # sequence.
         # The build chain is the list of images we need to build,
         # while the other list is just a list of images we have a reference to
         #
         # TODO: fetch the available images on our default registry too?
-        self.known_images = set(config.get('base_images', []))
-        self.all_images = set()
-        self._build_chain = []
+        self.known_images: Set[str] = set(config.get("base_images", []))
+        self.all_images: Set[ImageFSM] = set()
+        self._build_chain: List[ImageFSM] = []
 
-    def _matches_glob(self, img):
+    def _matches_glob(self, img: ImageFSM) -> bool:
         """
         Check if the label of an image matches the glob pattern
         """
-        return (self.glob is None or fnmatch.fnmatch(img.label, self.glob))
+        return self.glob is None or fnmatch.fnmatch(img.label, self.glob)
 
-    def scan(self, max_workers=1):
+    def scan(self, max_workers: int = 1):
         """
         Scan the desired directory for dockerfiles, add them all to a build chain
 
@@ -219,16 +235,16 @@ class DockerBuilder(object):
 
         roots = []
         for root, dirs, files in os.walk(self.root):
-            hasTemplate = 'Dockerfile.template' in files
-            hasChangelog = 'changelog' in files
+            hasTemplate = "Dockerfile.template" in files
+            hasChangelog = "changelog" in files
 
             if not hasTemplate and not hasChangelog:
                 continue
             elif not hasTemplate:
-                log.warning('Ignoring %s since it lacks a Dockerfile.template', root)
+                log.warning("Ignoring %s since it lacks a Dockerfile.template", root)
                 continue
             elif not hasChangelog:
-                log.warning('Ignoring %s since it lacks a changelog', root)
+                log.warning("Ignoring %s since it lacks a changelog", root)
                 continue
             # We have both files and can proceed this directory
             roots.append(root)
@@ -240,24 +256,24 @@ class DockerBuilder(object):
             self.known_images.add(img.label)
             self.all_images.add(img)
 
-    def _process_dockerfile_template(self, root):
-        log.info('Processing the dockerfile template in %s', root)
+    def _process_dockerfile_template(self, root: str) -> ImageFSM:
+        log.info("Processing the dockerfile template in %s", root)
         try:
             return ImageFSM(root, self.client, self.config, self.nocache, self.pull)
         except Exception as e:
-            log.error('Could not load image in %s: %s', root, e, exc_info=True)
+            log.error("Could not load image in %s: %s", root, e, exc_info=True)
             raise RuntimeError(
-                'The image in {d} could not be loaded, '
-                'check the logs for details'.format(d=root))
+                "The image in {d} could not be loaded, " "check the logs for details".format(d=root)
+            )
 
-    def images_in_state(self, state):
+    def images_in_state(self, state: str) -> List[ImageFSM]:
         """Find all images in a specific state"""
         if state not in ImageFSM.STATES:
             raise ValueError("Invalid state {s}".format(s=state))
         return [img for img in self.all_images if img.state == state]
 
     @property
-    def build_chain(self):
+    def build_chain(self) -> List[ImageFSM]:
         # reset the build chain
         self._build_chain = []
         for img in self.images_in_state(ImageFSM.STATE_TO_BUILD):
@@ -265,7 +281,7 @@ class DockerBuilder(object):
                 self._add_deps(img)
         return self._build_chain
 
-    def prune_chain(self):
+    def prune_chain(self) -> List[ImageFSM]:
         """Returns the images that need to be pruned, in the correct order."""
         # This is a hack. We're abusing the build chain concept.
         for fsm in self.all_images:
@@ -277,7 +293,7 @@ class DockerBuilder(object):
         chain.reverse()
         return chain
 
-    def _add_deps(self, img):
+    def _add_deps(self, img: ImageFSM):
         if img in self._build_chain:
             # the image is already in the build chain, no reason to re-add it.
             # Also, stop going down this tree again
@@ -295,10 +311,10 @@ class DockerBuilder(object):
         # If at this point the image is in the build chain, one of its
         # dependencies required it. This means we have a circular dependency.
         if img in self._build_chain:
-            raise RuntimeError('Dependency loop detected for image {image}'.format(image=img.image))
+            raise RuntimeError("Dependency loop detected for image {image}".format(image=img.image))
         self._build_chain.append(img)
 
-    def pull_dependencies(self, fsm):
+    def pull_dependencies(self, fsm: ImageFSM):
         """Pulls all dependencies from the docker registry, if they're present"""
         for name in fsm.image.depends:
             dep_img = self._img_from_name(name)
@@ -319,10 +335,11 @@ class DockerBuilder(object):
                 dep_img = self._img_from_name(dep)
                 if dep_img is None:
                     raise RuntimeError(
-                        'Image {} (dependency of {}) not found'.format(dep, img.label))
+                        "Image {} (dependency of {}) not found".format(dep, img.label)
+                    )
                 dep_img.add_child(img)
 
-    def images_to_update(self):
+    def images_to_update(self) -> Set[ImageFSM]:
         """Returns a list of images to update"""
         self._build_dependencies()
         images_to_update = set()
@@ -332,9 +349,11 @@ class DockerBuilder(object):
                     images_to_update.add(to_update)
         return images_to_update
 
-    def update_images(self, images, reason, baseimg, version=None):
-        dep_reason = 'Refresh for update in parent image {}:\n{}'.format(
-            baseimg, reason)
+    def update_images(
+        self, images: Set[ImageFSM], reason: str, baseimg: str, version: Optional[str] = None
+    ):
+        """Update the changelog for the images provided"""
+        dep_reason = "Refresh for update in parent image {}:\n{}".format(baseimg, reason)
         for img in images:
             if img.image.short_name == baseimg:
                 # For the base image, we use the version chosen
@@ -345,14 +364,14 @@ class DockerBuilder(object):
                 # and we only increment the minor version automatically.
                 img.image.create_update(dep_reason)
 
-    def _img_from_name(self, name):
+    def _img_from_name(self, name: str) -> Optional[ImageFSM]:
         """Retrieve an image given a name"""
         for img in self.all_images:
             if img.image.short_name == name:
                 return img
         return None
 
-    def build(self):
+    def build(self) -> Generator[ImageFSM, None, None]:
         """Build the images in the build chain"""
         for img in self.build_chain:
             # If pull is defined, call pull_dependencies()
@@ -365,13 +384,13 @@ class DockerBuilder(object):
 
             yield img
 
-    def publish(self):
+    def publish(self) -> Generator[ImageFSM, None, None]:
         """Publish all images to the configured registry"""
-        if self.config.get('registry') is None:
-            log.warning('Cannot publish if no registry is defined')
+        if self.config.get("registry") is None:
+            log.warning("Cannot publish if no registry is defined")
             return
-        if not all([self.config['username'], self.config['password']]):
-            log.warning('Cannot publish images if both username and password are not set')
+        if not all([self.config["username"], self.config["password"]]):
+            log.warning("Cannot publish images if both username and password are not set")
             return
         for img in self.images_in_state(ImageFSM.STATE_BUILT):
             img.publish()

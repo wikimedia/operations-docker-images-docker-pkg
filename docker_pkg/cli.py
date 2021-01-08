@@ -6,12 +6,13 @@ import argparse
 import logging
 import os
 import sys
+from typing import Any, Dict, List, Optional
 
 import yaml
 
 from docker_pkg import builder, dockerfile, image
 
-defaults = {
+defaults: Dict[str, Any] = {
     "registry": None,
     "username": None,
     "password": None,
@@ -28,10 +29,10 @@ defaults = {
     "ca_bundle": None,
 }
 
-ACTIONS = ["build", "prune", "update"]
+ACTIONS: List[str] = ["build", "prune", "update"]
 
 
-def parse_args(args):
+def parse_args(args: List[str]):
     """Parse the command-line arguments."""
     parser = argparse.ArgumentParser()
     # Global options
@@ -98,7 +99,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def read_config(configfile):
+def read_config(configfile: str):
     config = defaults.copy()
 
     with open(configfile, "rb") as fh:
@@ -108,7 +109,7 @@ def read_config(configfile):
     return config
 
 
-def main(args=None):
+def main(args: Optional[argparse.Namespace] = None):
     log_to_stdout = True
     if args is None:
         args = parse_args(sys.argv[1:])
@@ -157,7 +158,7 @@ def main(args=None):
         raise ValueError(args.action)
 
 
-def build(application, log_to_stdout):
+def build(application: builder.DockerBuilder, log_to_stdout: bool):
     print("== Step 0: scanning {d} ==".format(d=application.root))
     application.scan(max_workers=application.config["scan_workers"])
     print("Will build the following images:")
@@ -187,7 +188,7 @@ def build(application, log_to_stdout):
         print("You can see the logs at ./docker-pkg-build.log")
 
 
-def prune(application, nightly):
+def prune(application: builder.DockerBuilder, nightly: str):
     # cheat dockerimage into using a fixed format
     if nightly:
         image.DockerImage.NIGHTLY_BUILD_FORMAT = nightly
@@ -206,7 +207,7 @@ def prune(application, nightly):
             print("* Errors pruning old images for {}".format(fsm.label))
 
 
-def update(application, reason, selected, version):
+def update(application: builder.DockerBuilder, reason: str, selected: str, version: Optional[str]):
     print("== Step 0: scanning {d}".format(d=application.root))
     application.scan()
     to_update = application.images_to_update()
