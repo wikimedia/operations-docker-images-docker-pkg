@@ -182,7 +182,7 @@ class DockerImageBase:
         with open(os.path.join(build_path, filename), "w") as fh:
             fh.write(dockerfile)
 
-        def stream_to_log(logger, chunk):
+        def stream_to_log(logger, chunk: Dict):
             if "error" in chunk:
                 error_msg = chunk["errorDetail"]["message"].rstrip()
                 error_code = chunk["errorDetail"].get("code", 0)
@@ -193,7 +193,9 @@ class DockerImageBase:
                     )
                 else:
                     logger.error("Build failed: %s", error_msg)
-                raise docker.errors.BuildError("Building image {} failed".format(self.image))
+                raise docker.errors.BuildError(
+                    "Building image {} failed".format(self.image), logger
+                )
             elif "stream" in chunk:
                 logger.info(chunk["stream"].rstrip())
             elif "status" in chunk:

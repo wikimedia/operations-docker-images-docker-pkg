@@ -143,6 +143,15 @@ class TestDockerImageBase(unittest.TestCase):
 
         self.image.dockerfile_tpl.render.assert_called_with(foo="bar")
         m.assert_called_with("/tmp/test", "w")
+
+        # If the build returns an error, a docker.errors.BuildError exception is raised
+        self.docker.api.build.return_value = [
+            {"error": "test", "errorDetail": {"message": "test! ", "code": 1}}
+        ]
+        with self.assertRaises(docker.errors.BuildError):
+            with patch("docker_pkg.image.open", m, create=True):
+                self.image.do_build("/tmp", filename="test")
+
         # An empty dockerfile will raise an exception
         # and not open files nor call a build
         self.image.dockerfile_tpl.render.return_value = None
