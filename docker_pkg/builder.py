@@ -203,6 +203,11 @@ class DockerBuilder:
                 registry="https://{}".format(self.config["registry"]),
                 reauth=True,
             )
+        # Base images we need to refresh before building, see T219398, as labels.
+        self.base_images: List[str] = config.get("base_images", [])
+        seed = config.get("seed_image", "")
+        if seed:
+            self.base_images.append(seed)
         # We create three lists here:
         # all_images is a set of all the ImageFSMs generated for the images we find in our scan
         # known_images is a list of full image labels (so, fullname:tag) that is a sum of what we
@@ -213,7 +218,7 @@ class DockerBuilder:
         # while the other list is just a list of images we have a reference to
         #
         # TODO: fetch the available images on our default registry too?
-        self.known_images: Set[str] = set(config.get("base_images", []))
+        self.known_images: Set[str] = set(self.base_images)
         self.all_images: Set[ImageFSM] = set()
         self._build_chain: List[ImageFSM] = []
 
@@ -373,6 +378,12 @@ class DockerBuilder:
 
     def build(self) -> Generator[ImageFSM, None, None]:
         """Build the images in the build chain"""
+        # First refresh the base images, to avoid using stale copies of them.
+        # See T219398
+        if self.pull:
+            for name in self.base_images:
+                log.info("Refreshing %s", name)
+                self.client.images.pull(name)
         for img in self.build_chain:
             # If pull is defined, call pull_dependencies()
             if self.pull:

@@ -65,7 +65,9 @@ class TestDockerBuilder(unittest.TestCase):
         with patch("docker_pkg.image.DockerImageBase.exists") as mocker:
             mocker.return_value = False
             self.builder.scan()
-        self.assertEqual(self.builder.known_images, {"foo-bar:0.0.1", "foobar-server:0.0.1~alpha1"})
+        self.assertEqual(
+            self.builder.known_images, {"test", "foo-bar:0.0.1", "foobar-server:0.0.1~alpha1"}
+        )
         # Build chain is correctly ordered
         bc = [img.label for img in self.builder.build_chain]
         self.assertEqual(bc, ["foo-bar:0.0.1", "foobar-server:0.0.1~alpha1"])
@@ -206,6 +208,8 @@ class TestDockerBuilder(unittest.TestCase):
         )
         self.builder.all_images = set([img0, img1])
         result = [r for r in self.builder.build()]
+        # Check we did not pull the base image.
+        self.builder.client.images.pull.assert_not_called()
         self.assertEqual("foo-bar:0.0.1", result[0].label)
         self.assertEqual("built", result[0].state)
         self.builder.client.api.tag.assert_any_call("foo-bar:0.0.1", "foo-bar", "latest")
@@ -233,6 +237,8 @@ class TestDockerBuilder(unittest.TestCase):
         build.return_value = True
         self.builder.all_images = set([img0, img1])
         result = [r for r in self.builder.build()]
+        # Check we also pulled the base image
+        self.builder.client.images.pull.assert_called_with("test")
         pull.assert_has_calls([call(img0), call(img1)])
         assert build.call_count == 1
 
@@ -246,9 +252,9 @@ class TestDockerBuilder(unittest.TestCase):
         img0.state = ImageFSM.STATE_BUILT
         img1.state = ImageFSM.STATE_TO_BUILD
         self.builder.all_images = set([img0, img1])
-        # img1 is locally built, but not published. We should not pull anything
+        # img1 is locally built, but not published. No image should be pulled.
         self.builder.pull_dependencies(img1)
-        assert self.builder.client.images.pull.call_count == 0
+        self.builder.client.images.assert_not_called()
         # now if it's published, we should pull it instead
         img0.state = ImageFSM.STATE_PUBLISHED
         self.builder.pull_dependencies(img1)
