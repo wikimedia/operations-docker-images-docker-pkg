@@ -94,8 +94,10 @@ def parse_args(args: List[str]):
     update.add_argument(
         "--version", "-v", help="Specify a version for the image to upgrade", default=None
     )
-    # The directory argument always goes last
-    parser.add_argument("directory", metavar="DIRECTORY", help="The directory to scan for images")
+    # The directory argument always goes last. We add it to every subparser to avoid a bad UX when
+    # omitting it. See T253131
+    for subp in [update, prune, build]:
+        subp.add_argument("directory", metavar="DIRECTORY", help="The directory to scan for images")
     return parser.parse_args(args)
 
 
