@@ -42,15 +42,15 @@ class TemplateEngine:
     def setup_apt_install(cls):
         t = Template(
             """
-{%- if http_proxy -%}
-echo 'Acquire::http::Proxy \"{{ http_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy \\
+{%- if apt_only_proxy -%}
+echo 'Acquire::http::Proxy \"{{ apt_only_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy \\
     && apt-get update {{ apt_options }} \\
 {%- else -%}
 apt-get update {{ apt_options }} \\
 {%- endif %}
     && DEBIAN_FRONTEND=noninteractive \\
     apt-get install {{ apt_options }} --yes {{ packages }} --no-install-recommends \\
-{%- if http_proxy %}
+{%- if apt_only_proxy %}
     && rm -f /etc/apt/apt.conf.d/80_proxy \\
 {%- endif %}
     && apt-get clean && rm -rf /var/lib/apt/lists/* """
@@ -68,11 +68,11 @@ apt-get update {{ apt_options }} \\
     def setup_apt_remove(cls):
         t = Template(
             """
-{%- if http_proxy -%}
-echo 'Acquire::http::Proxy \"{{ http_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy  && \\
+{%- if apt_only_proxy -%}
+echo 'Acquire::http::Proxy \"{{ apt_only_proxy }}\";' > /etc/apt/apt.conf.d/80_proxy  && \\
 {%- endif -%}
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get remove --yes --purge {{ packages }} \\
-{%- if http_proxy %}
+{%- if apt_only_proxy %}
     && rm -f /etc/apt/apt.conf.d/80_proxy \\
 {%- endif %}
     && apt-get clean && rm -rf /var/lib/apt/lists/* """

@@ -13,19 +13,35 @@ import yaml
 from docker_pkg import builder, dockerfile, image
 
 defaults: Dict[str, Any] = {
+    # Docker registry to use; if None, no registry will be assumed.
     "registry": None,
+    # username/password to use on the registry. If any of them is not set, publishing will be
+    # disabled.
     "username": None,
     "password": None,
+    # The base image for most images in the build directory
     "seed_image": "wikimedia-stretch:latest",
+    # Additional apt options to inject when installing packages
     "apt_options": "",
+    # Http proxy to use when building/pulling images. If not defined, no proxy will be used.
     "http_proxy": None,
+    # Proxy address to use for apt. If it is not defined, but http_proxy is, the http_proxy will be
+    # used.
+    "apt_only_proxy": None,
+    # List of additional image:tags besides the base image that we're basing our images upon.
     "base_images": [],
+    # Namespace under which the images will be published on the registry.
     "namespace": None,
+    # Number of parallel scan operations to conduct.
     "scan_workers": 8,
+    # Author to fallback to for new changes to create.
     "fallback_author": "Author",
     "fallback_email": "email@domain",
+    # Distribution component to use when updating changelogs
     "distribution": "wikimedia",
+    # Identifier for security updates in the changelogs
     "update_id": "s",
+    # CA bundle to use with python requests; if None, the system CA bundle will be used.
     "ca_bundle": None,
 }
 
@@ -108,6 +124,9 @@ def read_config(configfile: str):
         raw_config = yaml.safe_load(fh)
     if raw_config:
         config.update(raw_config)
+    # If no apt proxy is provided, but a generic http proxy was provided, copy it over
+    if config["http_proxy"] is not None and config["apt_only_proxy"] is None:
+        config["apt_only_proxy"] = config["http_proxy"]
     return config
 
 
