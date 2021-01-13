@@ -1,11 +1,12 @@
 import logging
 import os
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import MagicMock, call, patch
 
-from unittest.mock import patch, MagicMock, call
-
-from docker_pkg.builder import DockerBuilder, ImageFSM
 from docker_pkg import dockerfile, image
+from docker_pkg.builder import DockerBuilder, ImageFSM
+
 from tests import fixtures_dir
 
 
@@ -102,6 +103,23 @@ class TestDockerBuilder(unittest.TestCase):
                 # assertLogs() requires at least one message
                 logging.getLogger("dummy").info("fakemessage")
                 self.assertEqual(logger.output, ["INFO:dummy:fakemessage"])
+
+    def test_scan_raises_if_duplicate(self):
+        with patch("os.walk") as os_walk:
+            os_walk.return_value = [
+                (
+                    os.path.join(fixtures_dir, "foo-bar"),
+                    [],
+                    ["changelog", "control", "Dockerfile.template"],
+                ),
+                (
+                    os.path.join(fixtures_dir, "foo-bar"),
+                    [],
+                    ["changelog", "control", "Dockerfile.template"],
+                ),
+            ]
+            with self.assertRaises(RuntimeError):
+                self.builder.scan(max_workers=4)
 
     def test_build_chain(self):
         # Simple test for a linear dependency tree

@@ -4,12 +4,15 @@ Workflow to process, build and publish image definitions
 import fnmatch
 import os
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 from typing import Any, Dict, Generator, List, Optional, Set
 
 import docker
 import requests
 
 from docker_pkg import image, log
+
+mutex = Lock()
 
 
 class ImageFSM:
@@ -44,13 +47,7 @@ class ImageFSM:
     ):
         self.config = config
         self.image = image.DockerImage(root, client, self.config, nocache=nocache)
-        # Check that we're not initializing a second instance of the FSM for the same
-        # docker image. Please note this should happen before we initialize the object,
-        # but we need self.image.name to be accessible to make this check.
-        if self.image.short_name in ImageFSM._instances:
-            raise RuntimeError(
-                "Trying to reinstantiate the FSM for image {}".format(self.image.short_name)
-            )
+
         self.state = self.STATE_TO_BUILD
         self.children: Set["ImageFSM"] = set()
         if pull:
@@ -73,7 +70,20 @@ class ImageFSM:
             else:
                 self.state = self.STATE_BUILT
         # Register this FSM in the list of instances.
-        ImageFSM._instances.append(self.image.short_name)
+        # Check that we're not initializing a second instance of the FSM for the same
+        # docker image.
+        # Please note the check happens here, after all non-blocking io is finished, so
+        # the GIL will lock execution in a single thread for us. Still, for clarity to the
+        # reader, and for future-proofing the code here, we explicitly add a mutex.
+        mutex.acquire()
+        if self.image.short_name in ImageFSM._instances:
+            mutex.release()
+            raise RuntimeError(
+                "Trying to reinstantiate the FSM for image {}".format(self.image.short_name)
+            )
+        else:
+            ImageFSM._instances.append(self.image.short_name)
+            mutex.release()
 
     @property
     def label(self) -> str:
