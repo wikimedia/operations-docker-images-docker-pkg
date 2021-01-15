@@ -202,7 +202,7 @@ def build(application: builder.DockerBuilder, log_to_stdout: bool):
         for img in application.images_in_state(builder.ImageFSM.STATE_BUILT):
             img.publish()
             if img.state == builder.ImageFSM.STATE_PUBLISHED:
-                print("Successfully published image {image}".format(image=img.name))
+                print("Successfully published image {image}".format(image=img.label))
 
     print("== Build done! ==")
     if not log_to_stdout:
