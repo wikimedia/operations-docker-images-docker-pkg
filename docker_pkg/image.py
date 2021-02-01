@@ -179,6 +179,15 @@ class DockerImageBase:
         log.info("Generated dockerfile for %s:\n%s", self.image, dockerfile)
         if dockerfile is None:
             raise RuntimeError("The generated dockerfile is empty")
+
+        # Ensure the last USER instruction contains a numeric UID
+        if self.config.get("force_numeric_user") and not self._dockerfile_has_numeric_user(
+            dockerfile
+        ):
+            raise RuntimeError(
+                'Last USER instruction with non-numeric user, see "force_numeric_user" config'
+            )
+
         with open(os.path.join(build_path, filename), "w") as fh:
             fh.write(dockerfile)
 
@@ -224,6 +233,15 @@ class DockerImageBase:
             ):
                 stream_to_log(image_logger, line)
         return self.image
+
+    def _dockerfile_has_numeric_user(self, dockerfile: str):
+        # Return true in case dockerfile does not contain a USER instruction
+        numeric_user = True
+        regex = re.compile(r"^USER\s+\d+(?:\:\d+)?$")
+        for line in dockerfile.split("\n"):
+            if line.startswith("USER "):
+                numeric_user = True if regex.match(line) else False
+        return numeric_user
 
     def clean(self):
         """Remove the image if needed"""

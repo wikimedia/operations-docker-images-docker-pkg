@@ -43,6 +43,8 @@ defaults: Dict[str, Any] = {
     "update_id": "s",
     # CA bundle to use with python requests; if None, the system CA bundle will be used.
     "ca_bundle": None,
+    # Raise an error if the last USER instruction does not use a numeric UID.
+    "force_numeric_user": False,
 }
 
 ACTIONS: List[str] = ["build", "prune", "update"]

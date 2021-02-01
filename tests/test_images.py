@@ -160,6 +160,14 @@ class TestDockerImageBase(unittest.TestCase):
             self.image.do_build("/tmp", filename="test")
         self.docker.images.build.assert_not_called()
 
+    def test_dockerfile_has_numeric_user(self):
+        self.assertFalse(self.image._dockerfile_has_numeric_user("USER 0\nUSER notmuchnumeric"))
+        self.assertTrue(self.image._dockerfile_has_numeric_user("RUN but\nNo user at all"))
+        self.assertTrue(
+            self.image._dockerfile_has_numeric_user("USER root\nPrivileged\nUSER 123:12")
+        )
+        self.assertTrue(self.image._dockerfile_has_numeric_user("USER 1000"))
+
 
 class TestDockerImage(unittest.TestCase):
     def setUp(self):
