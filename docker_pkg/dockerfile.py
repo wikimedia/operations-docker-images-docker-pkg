@@ -8,7 +8,7 @@ from typing import Any, Dict, Set
 
 from jinja2 import Environment, FileSystemLoader, Template
 
-from docker_pkg import image_fullname
+from docker_pkg import image_fullname, log
 
 
 class TemplateEngine:
@@ -29,7 +29,6 @@ class TemplateEngine:
 
         def find_image_tag(image_name):
             image_name = image_fullname(image_name, cls.config)
-
             for img_with_tag in cls.known_images:
                 name, tag = img_with_tag.split(":")
                 if image_name == name:
@@ -37,6 +36,21 @@ class TemplateEngine:
             raise ValueError("Image {name} not found".format(name=image_name))
 
         cls.env.filters["image_tag"] = find_image_tag
+
+        def get_uid(user: str):
+            mappings = cls.config["known_uid_mappings"]
+            if user not in mappings:
+                # If there is no available mapping, we just return the username.
+                # If strict use of numeric uids is required by toggling the force_numeric_user
+                # configuration option on, the dockerfile we generate will be rejected by
+                # the check in image.DockerImageBase.do_build() at build time, thus the build
+                # will fail.
+                log.warn("UID mapping for user %s not found", user)
+                return user
+            else:
+                return str(mappings[user])
+
+        cls.env.filters["uid"] = get_uid
 
     @classmethod
     def setup_apt_install(cls):

@@ -45,6 +45,10 @@ defaults: Dict[str, Any] = {
     "ca_bundle": None,
     # Raise an error if the last USER instruction does not use a numeric UID.
     "force_numeric_user": False,
+    # Known UID mappings are a list of mappings of user->uid that helps
+    # avoiding the use of non-numeric USER stanzas.
+    # We add the debian defaults for a few system users below.
+    "known_uid_mappings": {"root": 0, "www-data": 33, "nobody": 65534},
 }
 
 ACTIONS: List[str] = ["build", "prune", "update"]

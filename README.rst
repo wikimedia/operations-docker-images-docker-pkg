@@ -64,11 +64,13 @@ templates, but also affect how ``docker-pkg`` works:
   command line when installing packages. 
 * ``seed_image``: the default base image, that should be used by most images in your 
   repository as their base.
-* ``base_images``: Additional images that are not built by docker-pkg but should be present 
+* ``base_images``: Additional images that are not built by docker-pkg but should be present
   or pulled in order to be able to build the images.
 * ``scan_workers``: maximum number of threads to use when scanning local
   definition of images. For each image found, ``docker-pkg`` queries the local
   Docker daemon and the registry. Default: 8.
+* ``known_uid_mappings`` is a dictionary of username:uid mappings that can be used with the
+  `uid` template helper.
 
 Build the images
 ----------------
@@ -131,6 +133,10 @@ Filters
 
 * ``apt_remove``: this filter will remove the packages listed in the string you
   pass to it, acting pretty much the same way ``apt_install`` does.
+
+
+* ``uid``: this filter will take a username as input, and output the corresponding
+  UID if a corresponding mapping is saved in `known_uid_mappings` in the configuration.
 
 Build-stage containers
 ----------------------
