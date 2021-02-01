@@ -182,25 +182,12 @@ class TestDockerImage(unittest.TestCase):
         self.assertEqual(self.image.tag, "0.0.1")
         self.assertEqual(self.image.name, "foo-bar")
         self.assertEqual(self.image.path, self.basedir)
-        self.assertIsNone(self.image.build_image)
         self.assertEqual(self.image.depends, [])
         image.DockerImage.is_nightly = True
         img = image.DockerImage(self.basedir, self.docker, self.config)
         date = datetime.datetime.now().strftime(img.NIGHTLY_BUILD_FORMAT)
         self.assertEqual(img.tag, "0.0.1-{}".format(date))
         image.DockerImage.is_nightly = False
-
-    def test_init_with_build_image(self):
-        base = os.path.join(fixtures_dir, "with_build")
-        with patch("docker_pkg.dockerfile.from_template") as df:
-            img = image.DockerImage(base, self.docker, self.config)
-        self.assertEqual(img.tag, "0.0.1~alpha1")
-        self.assertEqual(img.name, "foobar-server")
-        self.assertIsInstance(img.build_image, image.DockerImageBase)
-        self.assertEqual(img.build_image.tag, "0.0.1~alpha1")
-        self.assertEqual(img.build_image.name, "foobar-server-build")
-        df.assert_called_with(base, "Dockerfile.build.template")
-        self.assertEqual(img.depends, ["foo-bar"])
 
     def test_safe_name(self):
         self.image.short_name = "team-foo/test-app"
@@ -260,17 +247,6 @@ class TestDockerImage(unittest.TestCase):
         self.image._clean_build_environment.assert_called_with()
 
     @patch("docker_pkg.image.DockerImageBase.do_build")
-    def test_build_bad_artifacts(self, parent):
-        # Test image with failed build artifacts fails and doesn't call a build
-        self.image._create_build_environment = MagicMock()
-        self.image._clean_build_environment = MagicMock()
-        self.image._build_artifacts = MagicMock(return_value=False)
-        self.assertFalse(self.image.build())
-        parent.assert_not_called()
-        self.image._create_build_environment.assert_called_with()
-        self.image._clean_build_environment.assert_called_with()
-
-    @patch("docker_pkg.image.DockerImageBase.do_build")
     def test_build_exception(self, parent):
         # Test image that raises exception during a build is properly handled
         self.image._create_build_environment = MagicMock()
@@ -284,40 +260,6 @@ class TestDockerImage(unittest.TestCase):
         self.assertFalse(self.image.build())
         self.image._create_build_environment.assert_called_with()
         self.image._clean_build_environment.assert_called_with()
-
-    def test_build_artifacts(self):
-        self.image.build_path = "test"
-        bi = MagicMock(autospec=image.DockerImageBase)
-        self.image.build_image = bi
-        # if the build image in not present, the method will return true immediately
-        self.image.build_image = None
-        self.assertTrue(self.image._build_artifacts())
-        bi.clean.assert_not_called()
-
-    def test_build_artifacts_ok(self):
-        self.image.build_path = "test"
-        bi = MagicMock(autospec=image.DockerImageBase)
-        self.image.build_image = bi
-        # A successful build
-        self.assertTrue(self.image._build_artifacts())
-        bi.do_build.assert_called_with("test", filename="Dockerfile.build")
-        bi.extract.assert_called_with("/build", "test")
-        bi.clean.assert_called_with()
-
-    def test_build_artifacts_exception(self):
-        self.image.build_path = "test"
-        bi = MagicMock(autospec=image.DockerImageBase)
-        self.image.build_image = bi
-        # If the build fails at different times, the build is maked as failed.
-        bi.do_build.side_effect = docker.errors.BuildError("foo-build", None)
-        self.assertFalse(self.image._build_artifacts())
-        bi.extract.assert_not_called()
-        bi.clean.assert_called_with()
-        bi.clean.reset_mock()
-        bi.build.side_effect = None
-        bi.extract.side_effect = ValueError("test")
-        self.assertFalse(self.image._build_artifacts())
-        bi.clean.assert_called_with()
 
     def test_new_tag(self):
         # First test, check a native tag

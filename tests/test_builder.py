@@ -222,7 +222,7 @@ class TestDockerBuilder(unittest.TestCase):
             os.path.join(fixtures_dir, "foo-bar"), self.builder.client, self.builder.config
         )
         img1 = ImageFSM(
-            os.path.join(fixtures_dir, "with_build"), self.builder.client, self.builder.config
+            os.path.join(fixtures_dir, "foobar-server"), self.builder.client, self.builder.config
         )
         self.builder.all_images = set([img0, img1])
         result = [r for r in self.builder.build()]
@@ -248,7 +248,7 @@ class TestDockerBuilder(unittest.TestCase):
             os.path.join(fixtures_dir, "foo-bar"), self.builder.client, self.builder.config
         )
         img1 = ImageFSM(
-            os.path.join(fixtures_dir, "with_build"), self.builder.client, self.builder.config
+            os.path.join(fixtures_dir, "foobar-server"), self.builder.client, self.builder.config
         )
         img0.state = ImageFSM.STATE_TO_BUILD
         img1.state = ImageFSM.STATE_TO_BUILD
@@ -265,7 +265,7 @@ class TestDockerBuilder(unittest.TestCase):
             os.path.join(fixtures_dir, "foo-bar"), self.builder.client, self.builder.config
         )
         img1 = ImageFSM(
-            os.path.join(fixtures_dir, "with_build"), self.builder.client, self.builder.config
+            os.path.join(fixtures_dir, "foobar-server"), self.builder.client, self.builder.config
         )
         img0.state = ImageFSM.STATE_BUILT
         img1.state = ImageFSM.STATE_TO_BUILD
@@ -283,7 +283,7 @@ class TestDockerBuilder(unittest.TestCase):
             os.path.join(fixtures_dir, "foo-bar"), self.builder.client, self.builder.config
         )
         img1 = ImageFSM(
-            os.path.join(fixtures_dir, "with_build"), self.builder.client, self.builder.config
+            os.path.join(fixtures_dir, "foobar-server"), self.builder.client, self.builder.config
         )
         img0.state = ImageFSM.STATE_BUILT
         img1.state = ImageFSM.STATE_ERROR
@@ -301,7 +301,9 @@ class TestDockerBuilder(unittest.TestCase):
                 os.path.join(fixtures_dir, "foo-bar"), self.builder.client, self.builder.config
             )
             img1 = ImageFSM(
-                os.path.join(fixtures_dir, "with_build"), self.builder.client, self.builder.config
+                os.path.join(fixtures_dir, "foobar-server"),
+                self.builder.client,
+                self.builder.config,
             )
         img0.state = "built"
         img1.state = "built"
