@@ -7,6 +7,7 @@ import glob
 import os
 import random
 import re
+import shlex
 import shutil
 import string
 import subprocess
@@ -406,6 +407,47 @@ class DockerImage(DockerImageBase):
         finally:
             self._clean_build_environment()
         return success
+
+    def verify(self) -> bool:
+        """
+        Verify the image.
+
+        returns True if successful, or not test available
+        """
+        # We take the value of verify_args, and interpolate the current path and
+        # the image full name into it. We also check for the existence of all the arguments that
+        # are a filesystem path.
+        for arg in self.config["verify_args"]:
+            for part in shlex.split(arg):
+                # Check if arguments that are in the path are indeed present on the filesystem.
+                # If not, assume tests are not implemented for this image, and skip it quickly.
+                if part.find("{path}") < 0:
+                    continue
+                path = part.format(path=self.path)
+                if not os.path.exists(path):
+                    log.info("Could not find path %s, skipping verification of %s", arg, self.name)
+                    return True
+
+        args = [el.format(image=self.name, path=self.path) for el in self.config["verify_args"]]
+        try:
+            executable = self.config["verify_command"]
+            subprocess.run("which {}".format(executable), shell=True, check=True)
+        except subprocess.CalledProcessError:
+            log.error("Could not verify image %s: %s not found", self.name, executable)
+            # This means that if the base executable we need isn't available, we will refuse to
+            # publish any image.
+            return False
+
+        try:
+            to_run = [executable] + args
+            subprocess.run(to_run, check=True)
+            return True
+        except subprocess.CalledProcessError as e:
+            log.error(
+                "Verification of image %s failed with return code %d", self.name, e.returncode
+            )
+            log.error("-- output: %s", e.stdout)
+            return False
 
     def _dockerignore(self):
         dockerignore = os.path.join(self.path, ".dockerignore")

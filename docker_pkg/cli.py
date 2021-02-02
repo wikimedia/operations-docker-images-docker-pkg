@@ -49,6 +49,9 @@ defaults: Dict[str, Any] = {
     # avoiding the use of non-numeric USER stanzas.
     # We add the debian defaults for a few system users below.
     "known_uid_mappings": {"root": 0, "www-data": 33, "nobody": 65534},
+    # The template of the command to run.
+    "verify_command": "/bin/bash",
+    "verify_args": ["-c", "{path}/test.sh {image}"],
 }
 
 ACTIONS: List[str] = ["build", "prune", "update"]

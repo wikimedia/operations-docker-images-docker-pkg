@@ -23,6 +23,9 @@ class ImageFSM:
     STATE_PUBLISHED = "published"
     "Image is in the target Docker registry"
 
+    STATE_VERIFIED = "verified"
+    "Image has been verified."
+
     STATE_BUILT = "built"
     "Image is in the local Docker daemon"
 
@@ -32,7 +35,7 @@ class ImageFSM:
     STATE_ERROR = "error"
     ("Error state, for examples a failure to build locally or to publish it " "to the registry")
 
-    STATES = [STATE_PUBLISHED, STATE_BUILT, STATE_TO_BUILD, STATE_ERROR]
+    STATES = [STATE_PUBLISHED, STATE_BUILT, STATE_TO_BUILD, STATE_VERIFIED, STATE_ERROR]
     "List of possible states"
 
     _instances: List[str] = []
@@ -57,6 +60,7 @@ class ImageFSM:
             if self._is_published():
                 self.state = self.STATE_PUBLISHED
             elif self.image.exists():
+                # We always want to verify the image before publishing!
                 self.state = self.STATE_BUILT
             else:
                 self.state = self.STATE_TO_BUILD
@@ -131,6 +135,21 @@ class ImageFSM:
         else:
             self.state = self.STATE_ERROR
 
+    def verify(self):
+        """Verify the image."""
+        if self.state == self.STATE_VERIFIED:
+            return
+        if self.state != self.STATE_BUILT:
+            raise ValueError(
+                "Image {image} cannot be verified as it's not built, or already published.".format(
+                    image=self.image
+                )
+            )
+        if self.image.verify():
+            self.state = self.STATE_VERIFIED
+        else:
+            self.state = self.STATE_ERROR
+
     def add_tag(self, tag: str):
         """Add a new tag to an image"""
         log.debug("Adding tag %s to image %s", tag, self.image.image)
@@ -138,9 +157,9 @@ class ImageFSM:
 
     def publish(self):
         """Publish the image"""
-        if self.state != self.STATE_BUILT:
+        if self.state != self.STATE_VERIFIED:
             raise ValueError(
-                "Image {image} is not built, cannot publish it!".format(image=self.image)
+                "Image {image} is not verified, cannot publish it!".format(image=self.image)
             )
         # Checking the config has these keys should be done before trying to publish
         auth = {"username": self.config["username"], "password": self.config["password"]}
@@ -402,6 +421,10 @@ class DockerBuilder:
             # the image
             if img.state == ImageFSM.STATE_TO_BUILD:
                 img.build()
+                # We verify each image that we build.
+                # This ensures we run verification at build time even if we won't publish.
+                if img.state == ImageFSM.STATE_BUILT:
+                    img.verify()
 
             yield img
 
@@ -413,6 +436,13 @@ class DockerBuilder:
         if not all([self.config["username"], self.config["password"]]):
             log.warning("Cannot publish images if both username and password are not set")
             return
-        for img in self.images_in_state(ImageFSM.STATE_BUILT):
+        # We have two types of images we might publish:
+        # - Images we just built (which will be in STATE_VERIFIED)
+        # - Images previously built but not published (which will be in STATE_BUILT)
+        # We first verify all images in STATE_BUILT, then publish the ones that were verified.
+        for img in self.images_in_state((ImageFSM.STATE_BUILT)):
+            img.verify()
+
+        for img in self.images_in_state(ImageFSM.STATE_VERIFIED):
             img.publish()
             yield img

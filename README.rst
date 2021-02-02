@@ -71,6 +71,16 @@ templates, but also affect how ``docker-pkg`` works:
   Docker daemon and the registry. Default: 8.
 * ``known_uid_mappings`` is a dictionary of username:uid mappings that can be used with the
   `uid` template helper.
+* `verify_command` and `verify_args` specify which command to run, with which arguments, to verify 
+  that an image that was built actually works as intended. By default, the `test.sh` file in the 
+  image directory will be run, with the image full name as argument. If such file is not found, no verification step proceeds.
+  You can switch to another testing framework, for example by using pytest as follows:
+
+.. code-block:: YAML
+
+    verify_command: pytest
+    # This assumes your tests will accept a `--image` parameter.
+    verify_args: ["{path}/test_image.py", "--image", "{image}"]
 
 Build the images
 ----------------

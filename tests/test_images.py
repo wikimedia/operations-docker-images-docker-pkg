@@ -306,3 +306,22 @@ class TestDockerImage(unittest.TestCase):
                 opn.assert_any_call(changelog, "w")
                 assert dch.return_value.new_block.called
                 dch.return_value.write_to_open_file.assert_called_with(handle)
+
+    def test_verify_image_no_executable(self):
+        self.image.config["verify_command"] = "/nonexistent"
+        self.image.config["verify_args"] = []
+        self.assertFalse(self.image.verify())
+
+    def test_verify_failure(self):
+        self.image.config = defaults
+        self.image.config["verify_args"] = ["-c", "{path}/test.sh fail"]
+        self.assertFalse(self.image.verify())
+
+    def test_verify_success(self):
+        self.image.config = defaults
+        self.assertTrue(self.image.verify())
+
+    def test_verify_no_testcase(self):
+        self.image.config = defaults
+        self.image.config["verify_args"] = ["-c", "{path}/test.sh.nope fail"]
+        self.assertTrue(self.image.verify())
