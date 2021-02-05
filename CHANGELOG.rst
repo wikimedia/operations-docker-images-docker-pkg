@@ -1,6 +1,13 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
 
+`v3.0.1` (2021-02-05)
+^^^^^^^^^^^^^^^^^^^^^
+
+Bugfixes:
+"""""""""
+Actually use the builder.DockerBuilder methods when building images.
+
 `v3.0.0`_ (2021-02-05)
 ^^^^^^^^^^^^^^^^^^^^^^
 

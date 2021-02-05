@@ -196,10 +196,10 @@ def build(application: builder.DockerBuilder, log_to_stdout: bool):
         print("* {image}".format(image=img.label))
 
     print("== Step 1: building images ==")
-    for img in application.build_chain:
-        print("=> Building image {image}".format(image=img.label))
-        img.build()
-        if img.state != builder.ImageFSM.STATE_BUILT:
+    for img in application.build():
+        if img.state == builder.ImageFSM.STATE_VERIFIED:
+            print("* Built image {image}".format(image=img.label))
+        else:
             print(
                 " ERROR: image {image} failed to build, see logs for details".format(image=img.name)
             )
@@ -208,8 +208,7 @@ def build(application: builder.DockerBuilder, log_to_stdout: bool):
     if not all([application.config["username"], application.config["password"]]):
         print("NOT publishing images as we have no auth setup")
     else:
-        for img in application.images_in_state(builder.ImageFSM.STATE_BUILT):
-            img.publish()
+        for img in application.publish():
             if img.state == builder.ImageFSM.STATE_PUBLISHED:
                 print("Successfully published image {image}".format(image=img.label))
 
