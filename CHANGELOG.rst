@@ -1,6 +1,21 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
 
+`v3.0.0`_ (2021-02-05)
+^^^^^^^^^^^^^^^^^^^^^^
+
+API breaking changes
+""""""""""""""""""""
+* Removed the build image functionality as it is unused since docker supports multi-stage builds natively.
+
+
+New features
+""""""""""""
+* Added a new template function 'uid' that allows determining the UID of some well known users (specified in the "known_uid_mappings" config key).
+* Added the option to enforce images to be build with a numeric UID in the last USER instruction. This can be toggled via the "force_numeric_user" config key.
+* A verify step was introduced that allows users to run tests on images before publishing them. By default the script "test.sh" (if it exists) is executed with the image name as argument. May be overwritten via "verify_command" and "verify_args".
+
+
 `v2.0.0`_ (2019-04-09)
 ^^^^^^^^^^^^^^^^^^^^^^
 
