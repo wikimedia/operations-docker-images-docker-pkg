@@ -199,4 +199,7 @@ When building images on macOS, you may see an error like this:
 
    OSError: Could not find a suitable TLS CA certificate bundle, invalid path: /etc/ssl/certs/ca-certificates.crt
 
-To work around this, open Keychain Access, navigate to System Roots -> Certificates, select all certificates and go to File -> Export Items. Select the export format as Certificate (.cer). Save the file to a temporary location, then ``mv`` it to ``/etc/ssl/certs/ca-certificates.crt``.
+To work around this, open Keychain Access, navigate to System Roots ->
+Certificates, select all certificates and go to File -> Export Items. Select
+the export format as Certificate (.cer). Save the file to a temporary
+location, then ``mv`` it to ``/etc/ssl/certs/ca-certificates.crt``.
