@@ -440,7 +440,8 @@ class DockerImage(DockerImageBase):
 
         try:
             to_run = [executable] + args
-            subprocess.run(to_run, check=True)
+            # Inject the proxy env variables if we have an HTTP proxy defined.
+            subprocess.run(to_run, check=True, env=self.buildargs)
             return True
         except subprocess.CalledProcessError as e:
             log.error(
