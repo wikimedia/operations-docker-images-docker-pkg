@@ -1,5 +1,15 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
+`v3.0.2` (2021-02-16)
+^^^^^^^^^^^^^^^^^^^^^
+
+New features
+""""""""""""
+Add a new filter called add_user to help adding users that have a uid mapping.
+
+Bugfixes:
+"""""""""
+Use the set HTTP proxy when running verification steps
 
 `v3.0.1` (2021-02-05)
 ^^^^^^^^^^^^^^^^^^^^^

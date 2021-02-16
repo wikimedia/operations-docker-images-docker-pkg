@@ -148,20 +148,12 @@ Filters
 * ``uid``: this filter will take a username as input, and output the corresponding
   UID if a corresponding mapping is saved in `known_uid_mappings` in the configuration.
 
-Build-stage containers
+* ``add_user``: this filter will take a username as input, and output the instructions
+  to create an user with that username, as long as an uid mapping is provided in the
+  configuration.
+
+Build-stage artifacts
 ----------------------
-
-``docker-pkg`` allows using a build docker image to generate artifacts you
-later want to use in the actual service container. Please note that when newer
-docker versions including multi-stage builds are available, it might be
-advisable to switch to that system.
-
-If you need to build libraries or binaries but don't want to pollute your
-container, you can create a ``Dockerfile.build.template`` in the container
-directory, using the same syntax of the main docker container, and have the
-build put any artifacts you'll want to use into the ``/build`` directory. That
-directory will be later be copied to the ``build`` subdirectory of the main
-Dockerfile build context, so you can use those.
 
 Every build is performed in a temporary directory, and any leftovers of the
 build (so the build image, any container spawned out of it, etc) will be taken

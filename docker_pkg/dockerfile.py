@@ -52,6 +52,18 @@ class TemplateEngine:
 
         cls.env.filters["uid"] = get_uid
 
+        def add_user(usr):
+            id = get_uid(usr)
+            if id == usr:
+                raise ValueError("No mapping found for user '{u}'".format(u=usr))
+            groupadd = "groupadd -o -g {id} -r {usr}".format(id=id, usr=usr)
+            useradd = "useradd -l -o -r -m -d /var/lib/{usr} -g {usr} -u {id} {usr}".format(
+                id=id, usr=usr
+            )
+            return "{g} && {u}".format(g=groupadd, u=useradd)
+
+        cls.env.filters["add_user"] = add_user
+
     @classmethod
     def setup_apt_install(cls):
         t = Template(
