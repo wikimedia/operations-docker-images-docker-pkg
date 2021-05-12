@@ -356,8 +356,8 @@ class DockerBuilder:
             if dep_img is None or dep_img.state != ImageFSM.STATE_PUBLISHED:
                 continue
             try:
-                log.info("Pulling image %s, dependency of %s", dep_img.image.name, fsm.image.name)
-                self.client.images.pull(dep_img.image.name)
+                log.info("Pulling image %s, dependency of %s", dep_img.image.image, fsm.image.name)
+                self.client.images.pull(dep_img.image.image)
             except docker.errors.APIError as e:
                 log.exception("Failed to pull image %s: %s", dep_img.image.name, e)
                 fsm.state = ImageFSM.STATE_ERROR

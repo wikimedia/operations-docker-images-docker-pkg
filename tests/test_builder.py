@@ -352,7 +352,7 @@ class TestDockerBuilder(unittest.TestCase):
         # now if it's published, we should pull it instead
         img0.state = ImageFSM.STATE_PUBLISHED
         self.builder.pull_dependencies(img1)
-        self.builder.client.images.pull.assert_called_with(img0.image.name)
+        self.builder.client.images.pull.assert_called_with(img0.image.image)
 
     def test_images_in_state(self):
         img0 = ImageFSM(
