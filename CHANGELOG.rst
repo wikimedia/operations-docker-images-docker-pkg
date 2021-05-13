@@ -1,5 +1,12 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
+`v3.0.3` (2021-05-13)
+^^^^^^^^^^^^^^^^^^^^^
+Bugfixes:
+"""""""""
+* Use the full image tag when pulling from a registry
+* Bump docker-py dependency to the latest major
+
 `v3.0.2` (2021-02-16)
 ^^^^^^^^^^^^^^^^^^^^^
 
