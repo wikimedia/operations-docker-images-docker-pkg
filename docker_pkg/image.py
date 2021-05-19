@@ -249,8 +249,12 @@ class DockerImage:
 
         try:
             to_run = [executable] + args
+            run_env = {}
             # Inject the proxy env variables if we have an HTTP proxy defined.
-            subprocess.run(to_run, check=True, env=self.driver.buildargs)
+            run_env.update(self.driver.buildargs)
+            if os.environ.get("PATH", ""):
+                run_env.update({"PATH": os.environ["PATH"]})
+            subprocess.run(to_run, check=True, env=run_env)
             return True
         except subprocess.CalledProcessError as e:
             log.error(

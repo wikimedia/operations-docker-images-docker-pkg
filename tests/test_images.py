@@ -3,7 +3,7 @@ import datetime
 import os
 import unittest
 
-from unittest.mock import MagicMock, patch, mock_open, call
+from unittest.mock import MagicMock, patch, mock_open, call, ANY
 
 import docker.errors
 
@@ -163,3 +163,23 @@ class TestDockerImage(unittest.TestCase):
         self.image.config = defaults
         self.image.config["verify_args"] = ["-c", "{path}/test.sh.nope fail"]
         self.assertTrue(self.image.verify())
+
+    @patch("subprocess.run")
+    def test_verify_path_environment(self, run):
+        self.image.config["verify_command"] = "/bin/false"
+        self.image.config["verify_args"] = []
+
+        local_path = {"PATH": "/mybin/"}
+        with patch.dict("os.environ", local_path, clear=True):
+            self.image.verify()
+
+        run.assert_called_with(["/bin/false"], check=True, env=local_path)
+
+    @patch("subprocess.run")
+    def test_verify_without_path_environment(self, run):
+        self.image.config["verify_command"] = "/bin/false"
+        self.image.config["verify_args"] = []
+
+        with patch.dict("os.environ", clear=True):
+            self.image.verify()
+        run.assert_called_with(["/bin/false"], check=True, env={})
