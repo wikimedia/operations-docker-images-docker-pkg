@@ -5,17 +5,13 @@ Manipulation of Docker images
 import datetime
 import glob
 import os
-import random
 import re
 import shlex
 import shutil
-import string
 import subprocess
-import tarfile
 import tempfile
 import time
 from contextlib import contextmanager
-from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple
 
 import docker.errors
@@ -108,38 +104,6 @@ class DockerImageBase:
             return True
         except docker.errors.ImageNotFound:
             return False
-
-    def extract(self, src: str, dst: Optional[str]):
-        """Extract a src path from an image to the filesystem directory dst"""
-        # This typically happens if you call "extract" before setting up the build environment.
-        if dst is None:
-            raise RuntimeError("The destination path for the extraction is not defined.")
-        container_name = "{name}-ephemeral-{rand}".format(
-            name=self.short_name,
-            rand="".join(random.choice(string.ascii_letters) for x in range(5)),
-        )
-        success = False
-        try:
-            container = self.docker.containers.create(
-                self.image,
-                name=container_name,
-                network_disabled=False,  # see https://github.com/docker/docker-py/issues/1195
-            )
-            archive = container.get_archive(src)
-            # Force the data to be read, so the docker connection will be freed
-            data = archive[0].data
-        except docker.errors.ImageNotFound:
-            log.error("%s - image not found, cannot extract its contents", self.image)
-        except Exception as e:
-            log.error("%s - generic error during the extraction: %s", self.image, e)
-        else:
-            tar = tarfile.open(mode="r", fileobj=BytesIO(data))
-            tar.extractall(path=dst)
-            success = True
-        finally:
-            self.remove_container(container_name)
-            if not success:
-                raise RuntimeError("Building artifacts failed")
 
     def remove_container(self, name: str) -> bool:
         """Removes the named container if it exists."""
@@ -255,9 +219,6 @@ class DockerImageBase:
 class DockerImage(DockerImageBase):
     """
     High-level management of docker images.
-
-    If a Dockerfile.build.template is present, the build image will
-    be built first, and artifacts will be extracted from it
     """
 
     TEMPLATE = "Dockerfile.template"

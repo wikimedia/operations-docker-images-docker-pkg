@@ -57,30 +57,6 @@ class TestDockerImageBase(unittest.TestCase):
         self.image.config["http_proxy"] = "foobar"
         self.assertEqual(self.image.buildargs["HTTPS_PROXY"], "foobar")
 
-    @patch("docker_pkg.image.tarfile.open")
-    @patch("docker_pkg.image.BytesIO")
-    def test_extract(self, bytesmock, openmock):
-        # Test docker calls in a successful extraction
-        tarmock = MagicMock()
-        openmock.return_value = tarmock
-        self.image.extract("/build", "/tmp")
-        self.image.docker.containers.create.assert_called_with(
-            "image_name:image_tag",
-            name=AnyStringIncluding("image_name-ephemeral-"),
-            network_disabled=False,
-        )
-        tarmock.extractall.assert_called_with(path="/tmp")
-        tarmock.reset_mock()
-        # Container creation failure does not get us to tarfile
-        self.image.docker.containers.create.side_effect = docker.errors.ImageNotFound("test")
-        self.assertRaises(RuntimeError, self.image.extract, "/build", "/tmp")
-        tarmock.assert_not_called()
-        # Tarfile extraction failure raises an exception
-        self.image.docker.containers.create.side_effect = None
-        tarmock.extractall.side_effect = ValueError("test!")
-        with self.assertRaises(RuntimeError):
-            self.image.extract("/build", "/tmp")
-
     def test_prune(self):
         def mock_image(tags, id):
             image = MagicMock()
