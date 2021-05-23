@@ -9,7 +9,7 @@ import docker.errors
 
 import docker_pkg.image as image
 from docker_pkg.cli import defaults
-from docker_pkg import dockerfile
+from docker_pkg import dockerfile, ImageLabel
 from tests import fixtures_dir
 
 
@@ -22,32 +22,20 @@ class TestDockerDriver(unittest.TestCase):
     def setUp(self):
         self.docker = MagicMock()
         self.config = {}
-        self.image = image.DockerDriver(
-            "image_name", "image_tag", self.docker, self.config, "/home", "abcde", "/tmp"
-        )
+        self.label = ImageLabel(self.config, "image_name", "image_tag")
+        tpl = dockerfile.Template("test")
+        self.image = image.DockerDriver(self.config, self.label, self.docker, tpl, True)
 
     def test_init(self):
-        img = image.DockerDriver(
-            "image_name", "image_tag", self.docker, self.config, "/home", "abcde", "/tmp"
-        )
-        self.assertEqual(img.docker, self.docker)
-        self.assertEqual(img.image, "image_name:image_tag")
-        self.assertEqual(img.build_path, "/tmp")
-        self.assertEqual(str(img), "image_name:image_tag")
-        self.assertTrue(img.nocache)
-
-    def test_name(self):
-        self.image.label.namespace = "acme"
-        self.assertEqual(self.image.name, "acme/image_name")
-        self.image.label.registry = "example.org"
-        self.assertEqual(self.image.name, "example.org/acme/image_name")
-        self.image.label.namespace = ""
-        self.assertEqual(self.image.name, "example.org/image_name")
+        self.assertEqual(self.image.client, self.docker)
+        self.assertEqual(self.image.label.image(), "image_name:image_tag")
+        self.assertEqual(str(self.image), "image_name:image_tag")
+        self.assertTrue(self.image.nocache)
 
     def test_exists(self):
         self.assertTrue(self.image.exists())
         self.docker.images.get.assert_called_with("image_name:image_tag")
-        self.image.docker.images.get.side_effect = docker.errors.ImageNotFound("test")
+        self.image.client.images.get.side_effect = docker.errors.ImageNotFound("test")
         self.assertFalse(self.image.exists())
 
     def test_buildargs(self):
@@ -76,9 +64,9 @@ class TestDockerDriver(unittest.TestCase):
 
     def test_clean(self):
         self.image.clean()
-        self.image.docker.images.remove.assert_called_with("image_name:image_tag")
+        self.image.client.images.remove.assert_called_with("image_name:image_tag")
         # If the image is not found, execution will work anyways
-        self.image.docker.images.remove.side_effect = docker.errors.ImageNotFound("test")
+        self.image.client.images.remove.side_effect = docker.errors.ImageNotFound("test")
         self.image.clean()
 
     def test_remove_container(self):
@@ -135,6 +123,21 @@ class TestDockerDriver(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.image.do_build("/tmp", filename="test")
         self.docker.images.build.assert_not_called()
+
+    def test_publish_no_credentials(self):
+        """Publishing without credentials raises an Exception"""
+        with self.assertRaises(ValueError):
+            self.image.publish(["lol"])
+
+    def test_publish(self):
+        """Publishing works as expected"""
+        self.image.config["username"] = "u"
+        self.image.config["password"] = "p"
+        self.image.client.api.push = MagicMock()
+        self.assertTrue(self.image.publish(["sometag"]))
+        self.image.client.api.push.assert_called_with(
+            "image_name", "sometag", auth_config={"username": "u", "password": "p"}
+        )
 
 
 class TestDockerImage(unittest.TestCase):

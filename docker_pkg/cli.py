@@ -13,8 +13,8 @@ import yaml
 from docker_pkg import builder, dockerfile, image
 
 defaults: Dict[str, Any] = {
-    # Docker registry to use; if None, no registry will be assumed.
-    "registry": None,
+    # Docker registry to use; if empty, no registry will be assumed.
+    "registry": "",
     # username/password to use on the registry. If any of them is not set, publishing will be
     # disabled.
     "username": None,
@@ -31,7 +31,7 @@ defaults: Dict[str, Any] = {
     # List of additional image:tags besides the base image that we're basing our images upon.
     "base_images": [],
     # Namespace under which the images will be published on the registry.
-    "namespace": None,
+    "namespace": "",
     # Number of parallel scan operations to conduct.
     "scan_workers": 8,
     # Author to fallback to for new changes to create.

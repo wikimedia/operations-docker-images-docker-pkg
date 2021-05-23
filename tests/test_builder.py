@@ -304,7 +304,6 @@ class TestDockerBuilder(unittest.TestCase):
         # Check the results.
         self.assertEqual("foo-bar:0.0.1", result[0].label)
         self.assertEqual("verified", result[0].state)
-        self.builder.client.api.tag.assert_any_call("foo-bar:0.0.1", "foo-bar", "latest")
         self.assertEqual("foobar-server:0.0.1~alpha1", result[1].label)
         self.assertEqual("error", result[1].state)
 

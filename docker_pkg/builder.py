@@ -130,7 +130,6 @@ class ImageFSM:
                 "Image {image} is already built or failed to build".format(image=self.image)
             )
         if self.image.build():
-            self.add_tag("latest")
             self.state = self.STATE_BUILT
         else:
             self.state = self.STATE_ERROR
@@ -150,27 +149,16 @@ class ImageFSM:
         else:
             self.state = self.STATE_ERROR
 
-    def add_tag(self, tag: str):
-        """Add a new tag to an image"""
-        log.debug("Adding tag %s to image %s", tag, self.image.image)
-        self.image.driver.docker.api.tag(self.image.image, self.image.name, tag)
-
     def publish(self):
         """Publish the image"""
         if self.state != self.STATE_VERIFIED:
             raise ValueError(
                 "Image {image} is not verified, cannot publish it!".format(image=self.image)
             )
-        # Checking the config has these keys should be done before trying to publish
-        auth = {"username": self.config["username"], "password": self.config["password"]}
-        for tag in [self.image.tag, "latest"]:
-            try:
-                self.image.driver.docker.api.push(self.image.name, tag, auth_config=auth)
-                self.state = self.STATE_PUBLISHED
-            except docker.errors.APIError as e:
-                log.error("Failed to publish image %s:%s: %s", self.image, tag, e)
-                self.state = self.STATE_ERROR
-                break
+        if self.image.publish():
+            self.state = self.STATE_PUBLISHED
+        else:
+            self.state = self.STATE_ERROR
 
     def add_child(self, img: "ImageFSM"):
         """Declare another image as child of the current one"""

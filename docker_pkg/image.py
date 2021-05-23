@@ -14,11 +14,12 @@ import time
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Tuple
 
+import attr
 import docker.errors
 from debian.changelog import Changelog
 from debian.deb822 import Packages
 
-from docker_pkg import dockerfile, log, ImageLabel
+from docker_pkg import ImageLabel, dockerfile, log
 
 
 @contextmanager
@@ -34,43 +35,18 @@ def pushd(dirname: str):
         os.chdir(cur_dir)
 
 
+@attr.s
 class DockerDriver:
     """Lower-level management of docker images"""
 
-    def __init__(
-        self,
-        name: str,
-        tag: str,
-        client: docker.client.DockerClient,
-        config: Dict[str, Any],
-        directory: str,
-        tpl: dockerfile.Template,
-        build_path: Optional[str],
-        nocache: bool = True,
-    ):
-        self.config = config
-        self.docker = client
-        self.short_name = name
-        self.tag = tag
-        self.label = ImageLabel(self.config, self.short_name, self.tag)
-        # TODO: remove here.
-        self.path = directory
-        self.dockerfile_tpl = tpl
-        self.build_path = build_path
-        self.nocache = nocache
-
-    @property
-    def name(self) -> str:
-        """Canonical Image name including registry and namespace"""
-        return self.label.label()
+    config: Dict[str, Any] = attr.ib()
+    label: ImageLabel = attr.ib()
+    client: docker.client.DockerClient = attr.ib()
+    dockerfile_tpl: dockerfile.Template = attr.ib()
+    nocache: bool = attr.ib(default=True)
 
     def __str__(self) -> str:
         """String representation is <image_name>:<tag>"""
-        return self.label.label("full")
-
-    @property
-    def image(self) -> str:
-        """Image label <name:tag>"""
         return self.label.label("full")
 
     def prune(self) -> bool:
@@ -80,15 +56,15 @@ class DockerDriver:
         returns True if successful, False otherwise
         """
         success = True
-        for image in self.docker.images.list(self.name):
+        for image in self.client.images.list(self.label.name()):
             # If any of the labels correspond to what declared in the
             # changelog, keep it
             image_aliases = image.attrs["RepoTags"]
-            if not any([(alias == self.image) for alias in image_aliases]):
+            if not any([(alias == self.label.image()) for alias in image_aliases]):
                 try:
                     img_id = image.attrs["Id"]
                     log.info('Removing image "%s" (Id: %s)', image_aliases[0], img_id)
-                    self.docker.images.remove(img_id)
+                    self.client.images.remove(img_id)
                 except Exception as e:
                     log.error("Error removing image %s: %s", img_id, str(e))
                     success = False
@@ -97,7 +73,7 @@ class DockerDriver:
     def exists(self) -> bool:
         """True if the image is present locally, false otherwise"""
         try:
-            self.docker.images.get(self.image)
+            self.client.images.get(self.label.image())
             return True
         except docker.errors.ImageNotFound:
             return False
@@ -105,7 +81,7 @@ class DockerDriver:
     def remove_container(self, name: str) -> bool:
         """Removes the named container if it exists."""
         try:
-            container = self.docker.containers.get(name)
+            container = self.client.containers.get(name)
         except docker.errors.NotFound:
             return False
         container.remove()
@@ -138,7 +114,7 @@ class DockerDriver:
         if build_path is None:
             raise RuntimeError("No build path was defined.")
         docker_file = self.dockerfile_tpl.render(**self.config)
-        log.info("Generated dockerfile for %s:\n%s", self.image, docker_file)
+        log.info("Generated dockerfile for %s:\n%s", self.label.image(), docker_file)
         if docker_file is None:
             raise RuntimeError("The generated dockerfile is empty")
 
@@ -163,7 +139,7 @@ class DockerDriver:
                 else:
                     logger.error("Build failed: %s", error_msg)
                 raise docker.errors.BuildError(
-                    "Building image {} failed".format(self.image), logger
+                    "Building image {} failed".format(self.label.image()), logger
                 )
             elif "stream" in chunk:
                 logger.info(chunk["stream"].rstrip())
@@ -179,12 +155,12 @@ class DockerDriver:
             else:
                 logger.warning("Unhandled stream chunk: %s" % chunk)
 
-        image_logger = log.getChild(self.image)
+        image_logger = log.getChild(self.label.image())
         with pushd(build_path):
-            for line in self.docker.api.build(
+            for line in self.client.api.build(
                 path=build_path,
                 dockerfile=filename,
-                tag=self.image,
+                tag=self.label.image(),
                 nocache=self.nocache,
                 rm=True,
                 pull=False,  # We manage pulling ourselves
@@ -192,14 +168,27 @@ class DockerDriver:
                 decode=True,
             ):
                 stream_to_log(image_logger, line)
-        return self.image
+        return self.label.image()
 
     def clean(self):
         """Remove the image if needed"""
         try:
-            self.docker.images.remove(self.image)
+            self.client.images.remove(self.label.image())
         except docker.errors.ImageNotFound:
             pass
+
+    def publish(self, tags) -> bool:
+        """Publish a list of tags using docker push"""
+        if not all(k in self.config for k in ["username", "password"]):
+            raise ValueError("Cannot publish without credentials.")
+        auth = {"username": self.config["username"], "password": self.config["password"]}
+        for tag in tags:
+            try:
+                self.client.api.push(self.label.name(), tag, auth_config=auth)
+            except docker.errors.APIError as e:
+                log.error("Failed to publish image %s:%s: %s", self.label.image(), tag, e)
+                return False
+        return True
 
 
 class DockerImage:
@@ -226,16 +215,7 @@ class DockerImage:
         self.path = directory
         # The build path will be set later
         self.build_path = None
-        self.driver = DockerDriver(
-            self.metadata["name"],
-            self.metadata["tag"],
-            client,
-            config,
-            directory,
-            tpl,
-            None,
-            nocache,
-        )
+        self.driver = DockerDriver(self.config, self.label, client, tpl, nocache)
 
     @property
     def short_name(self) -> str:
@@ -383,6 +363,15 @@ class DockerImage:
         finally:
             self._clean_build_environment()
         return success
+
+    def publish(self) -> bool:
+        self._add_tag("latest")
+        return self.driver.publish([self.label.version, "latest"])
+
+    def _add_tag(self, tag: str):
+        """Add a new tag to an image"""
+        log.debug("Adding tag %s to image %s", tag, self.label.image())
+        self.driver.client.api.tag(self.label.image(), self.label.name(), tag)
 
     def verify(self) -> bool:
         """
