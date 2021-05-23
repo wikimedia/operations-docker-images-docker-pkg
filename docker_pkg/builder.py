@@ -153,7 +153,7 @@ class ImageFSM:
     def add_tag(self, tag: str):
         """Add a new tag to an image"""
         log.debug("Adding tag %s to image %s", tag, self.image.image)
-        self.image.docker.api.tag(self.image.image, self.image.name, tag)
+        self.image.driver.docker.api.tag(self.image.image, self.image.name, tag)
 
     def publish(self):
         """Publish the image"""
@@ -165,7 +165,7 @@ class ImageFSM:
         auth = {"username": self.config["username"], "password": self.config["password"]}
         for tag in [self.image.tag, "latest"]:
             try:
-                self.image.docker.api.push(self.image.name, tag, auth_config=auth)
+                self.image.driver.docker.api.push(self.image.name, tag, auth_config=auth)
                 self.state = self.STATE_PUBLISHED
             except docker.errors.APIError as e:
                 log.error("Failed to publish image %s:%s: %s", self.image, tag, e)

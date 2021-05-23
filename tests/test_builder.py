@@ -46,8 +46,8 @@ class TestImageFSM(unittest.TestCase):
 
     def test_label(self):
         self.assertEqual(self.img.label, "foo-bar:0.0.1")
-        self.img.config["namespace"] = "test"
-        self.img.config["registry"] = "example.org"
+        self.img.image.label.namespace = "test"
+        self.img.image.label.registry = "example.org"
         self.assertEqual(self.img.label, "example.org/test/foo-bar:0.0.1")
 
     def test_name(self):
@@ -107,11 +107,11 @@ class TestDockerBuilder(unittest.TestCase):
         img = ImageFSM(
             os.path.join(fixtures_dir, "foo-bar"), self.builder.client, self.builder.config
         )
-        img.image.short_name = name
+        img.image.label.short_name = name
         # Clean up the images registry before initiating images this way.
         ImageFSM._instances.pop()
         ImageFSM._instances.append(name)
-        img.image.tag = tag
+        img.image.label.version = tag
         img.image.metadata["depends"] = deps
         img.state = ImageFSM.STATE_TO_BUILD
         return img
@@ -130,7 +130,7 @@ class TestDockerBuilder(unittest.TestCase):
         self.assertIsNone(db.glob)
 
     def test_scan(self):
-        with patch("docker_pkg.image.DockerImageBase.exists") as mocker:
+        with patch("docker_pkg.image.DockerDriver.exists") as mocker:
             mocker.return_value = False
             self.builder.scan()
         self.assertEqual(
@@ -279,7 +279,7 @@ class TestDockerBuilder(unittest.TestCase):
         self.builder.glob = "*a:*"
         assert self.builder.images_to_update() == {a, b, c, d}
 
-    @patch("docker_pkg.image.DockerImageBase.exists")
+    @patch("docker_pkg.image.DockerDriver.exists")
     @patch("docker_pkg.image.DockerImage.build")
     @patch("docker_pkg.image.DockerImage.verify")
     def test_build(self, verify, build, exists):

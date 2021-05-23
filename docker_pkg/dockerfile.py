@@ -4,11 +4,13 @@ Dockerfile.template processing
 The files are Jinja2 templates, the class provides built-in templates to ease
 writing Dockerfiles.
 """
+import re
+
 from typing import Any, Dict, Set
 
 from jinja2 import Environment, FileSystemLoader, Template
 
-from docker_pkg import image_fullname, log
+from docker_pkg import log, ImageLabel
 
 
 class TemplateEngine:
@@ -28,7 +30,8 @@ class TemplateEngine:
         cls.setup_apt_remove()
 
         def find_image_tag(image_name):
-            image_name = image_fullname(image_name, cls.config)
+            label = ImageLabel(cls.config, image_name, "")
+            image_name = label.label()
             for img_with_tag in cls.known_images:
                 name, tag = img_with_tag.split(":")
                 if image_name == name:
@@ -43,7 +46,7 @@ class TemplateEngine:
                 # If there is no available mapping, we just return the username.
                 # If strict use of numeric uids is required by toggling the force_numeric_user
                 # configuration option on, the dockerfile we generate will be rejected by
-                # the check in image.DockerImageBase.do_build() at build time, thus the build
+                # the check in has_numeric_user() at build time, thus the build
                 # will fail.
                 log.warn("UID mapping for user %s not found", user)
                 return user
@@ -115,3 +118,13 @@ echo 'Acquire::http::Proxy \"{{ apt_only_proxy }}\";' > /etc/apt/apt.conf.d/80_p
 
 def from_template(path: str, name: str) -> Template:
     return TemplateEngine(path).env.get_template(name)
+
+
+def has_numeric_user(dockerfile: str) -> bool:
+    # Return true in case dockerfile does not contain a USER instruction
+    numeric_user = True
+    regex = re.compile(r"^USER\s+\d+(?:\:\d+)?$")
+    for line in dockerfile.split("\n"):
+        if line.startswith("USER "):
+            numeric_user = True if regex.match(line) else False
+    return numeric_user

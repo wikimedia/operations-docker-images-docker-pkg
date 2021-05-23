@@ -18,7 +18,7 @@ import docker.errors
 from debian.changelog import Changelog
 from debian.deb822 import Packages
 
-from docker_pkg import dockerfile, image_fullname, log
+from docker_pkg import dockerfile, log, ImageLabel
 
 
 @contextmanager
@@ -34,7 +34,7 @@ def pushd(dirname: str):
         os.chdir(cur_dir)
 
 
-class DockerImageBase:
+class DockerDriver:
     """Lower-level management of docker images"""
 
     def __init__(
@@ -52,6 +52,8 @@ class DockerImageBase:
         self.docker = client
         self.short_name = name
         self.tag = tag
+        self.label = ImageLabel(self.config, self.short_name, self.tag)
+        # TODO: remove here.
         self.path = directory
         self.dockerfile_tpl = tpl
         self.build_path = build_path
@@ -60,21 +62,16 @@ class DockerImageBase:
     @property
     def name(self) -> str:
         """Canonical Image name including registry and namespace"""
-        return image_fullname(self.short_name, self.config)
-
-    @property
-    def safe_name(self) -> str:
-        """A filesystem-friendly identified"""
-        return self.short_name.replace("/", "-")
+        return self.label.label()
 
     def __str__(self) -> str:
         """String representation is <image_name>:<tag>"""
-        return self.image
+        return self.label.label("full")
 
     @property
     def image(self) -> str:
         """Image label <name:tag>"""
-        return "{name}:{tag}".format(name=self.name, tag=self.tag)
+        return self.label.label("full")
 
     def prune(self) -> bool:
         """
@@ -140,21 +137,19 @@ class DockerImageBase:
         # Typically happens if do_build is called before the build environment has been created
         if build_path is None:
             raise RuntimeError("No build path was defined.")
-        dockerfile = self.dockerfile_tpl.render(**self.config)
-        log.info("Generated dockerfile for %s:\n%s", self.image, dockerfile)
-        if dockerfile is None:
+        docker_file = self.dockerfile_tpl.render(**self.config)
+        log.info("Generated dockerfile for %s:\n%s", self.image, docker_file)
+        if docker_file is None:
             raise RuntimeError("The generated dockerfile is empty")
 
         # Ensure the last USER instruction contains a numeric UID
-        if self.config.get("force_numeric_user") and not self._dockerfile_has_numeric_user(
-            dockerfile
-        ):
+        if self.config.get("force_numeric_user") and not dockerfile.has_numeric_user(docker_file):
             raise RuntimeError(
                 'Last USER instruction with non-numeric user, see "force_numeric_user" config'
             )
 
         with open(os.path.join(build_path, filename), "w") as fh:
-            fh.write(dockerfile)
+            fh.write(docker_file)
 
         def stream_to_log(logger, chunk: Dict):
             if "error" in chunk:
@@ -199,15 +194,6 @@ class DockerImageBase:
                 stream_to_log(image_logger, line)
         return self.image
 
-    def _dockerfile_has_numeric_user(self, dockerfile: str):
-        # Return true in case dockerfile does not contain a USER instruction
-        numeric_user = True
-        regex = re.compile(r"^USER\s+\d+(?:\:\d+)?$")
-        for line in dockerfile.split("\n"):
-            if line.startswith("USER "):
-                numeric_user = True if regex.match(line) else False
-        return numeric_user
-
     def clean(self):
         """Remove the image if needed"""
         try:
@@ -216,7 +202,7 @@ class DockerImageBase:
             pass
 
 
-class DockerImage(DockerImageBase):
+class DockerImage:
     """
     High-level management of docker images.
     """
@@ -234,9 +220,13 @@ class DockerImage(DockerImageBase):
     ):
         self.metadata: Dict[str, Any] = {}
         self.read_metadata(directory)
+        self.config = config
+        self.label = ImageLabel(config, self.metadata["name"], self.metadata["tag"])
         tpl = dockerfile.from_template(directory, self.TEMPLATE)
+        self.path = directory
         # The build path will be set later
-        super().__init__(
+        self.build_path = None
+        self.driver = DockerDriver(
             self.metadata["name"],
             self.metadata["tag"],
             client,
@@ -246,6 +236,31 @@ class DockerImage(DockerImageBase):
             None,
             nocache,
         )
+
+    @property
+    def short_name(self) -> str:
+        return self.label.short_name
+
+    @property
+    def image(self) -> str:
+        return self.label.label("full")
+
+    @property
+    def name(self) -> str:
+        """Canonical Image name including registry and namespace"""
+        return self.label.label("name")
+
+    @property
+    def safe_name(self):
+        """A filesystem-friendly identified"""
+        return self.short_name.replace("/", "-")
+
+    @property
+    def tag(self) -> str:
+        return self.label.version
+
+    def exists(self) -> bool:
+        return self.driver.exists()
 
     def read_metadata(self, path: str):
         with open(os.path.join(path, "changelog"), "rb") as fh:
@@ -359,7 +374,7 @@ class DockerImage(DockerImageBase):
         self._create_build_environment()
         try:
             log.info("%s - buiding the image", self.image)
-            super().do_build(self.build_path)
+            self.driver.do_build(self.build_path)
             success = True
         except (docker.errors.BuildError, docker.errors.APIError) as e:
             log.exception("Building image %s failed - check your Dockerfile: %s", self.image, e)
@@ -402,7 +417,7 @@ class DockerImage(DockerImageBase):
         try:
             to_run = [executable] + args
             # Inject the proxy env variables if we have an HTTP proxy defined.
-            subprocess.run(to_run, check=True, env=self.buildargs)
+            subprocess.run(to_run, check=True, env=self.driver.buildargs)
             return True
         except subprocess.CalledProcessError as e:
             log.error(

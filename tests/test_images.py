@@ -18,16 +18,16 @@ class AnyStringIncluding(str):
         return self in other
 
 
-class TestDockerImageBase(unittest.TestCase):
+class TestDockerDriver(unittest.TestCase):
     def setUp(self):
         self.docker = MagicMock()
         self.config = {}
-        self.image = image.DockerImageBase(
+        self.image = image.DockerDriver(
             "image_name", "image_tag", self.docker, self.config, "/home", "abcde", "/tmp"
         )
 
     def test_init(self):
-        img = image.DockerImageBase(
+        img = image.DockerDriver(
             "image_name", "image_tag", self.docker, self.config, "/home", "abcde", "/tmp"
         )
         self.assertEqual(img.docker, self.docker)
@@ -37,11 +37,11 @@ class TestDockerImageBase(unittest.TestCase):
         self.assertTrue(img.nocache)
 
     def test_name(self):
-        self.image.config["namespace"] = "acme"
+        self.image.label.namespace = "acme"
         self.assertEqual(self.image.name, "acme/image_name")
-        self.image.config["registry"] = "example.org"
+        self.image.label.registry = "example.org"
         self.assertEqual(self.image.name, "example.org/acme/image_name")
-        self.image.config["namespace"] = None
+        self.image.label.namespace = ""
         self.assertEqual(self.image.name, "example.org/image_name")
 
     def test_exists(self):
@@ -136,14 +136,6 @@ class TestDockerImageBase(unittest.TestCase):
             self.image.do_build("/tmp", filename="test")
         self.docker.images.build.assert_not_called()
 
-    def test_dockerfile_has_numeric_user(self):
-        self.assertFalse(self.image._dockerfile_has_numeric_user("USER 0\nUSER notmuchnumeric"))
-        self.assertTrue(self.image._dockerfile_has_numeric_user("RUN but\nNo user at all"))
-        self.assertTrue(
-            self.image._dockerfile_has_numeric_user("USER root\nPrivileged\nUSER 123:12")
-        )
-        self.assertTrue(self.image._dockerfile_has_numeric_user("USER 1000"))
-
 
 class TestDockerImage(unittest.TestCase):
     def setUp(self):
@@ -166,7 +158,7 @@ class TestDockerImage(unittest.TestCase):
         image.DockerImage.is_nightly = False
 
     def test_safe_name(self):
-        self.image.short_name = "team-foo/test-app"
+        self.image.label.short_name = "team-foo/test-app"
         self.assertEqual(self.image.safe_name, "team-foo-test-app")
 
     @patch("os.path.isfile")
@@ -211,7 +203,7 @@ class TestDockerImage(unittest.TestCase):
             self.image._clean_build_environment()
             rm.assert_called_with("/tmp/test")
 
-    @patch("docker_pkg.image.DockerImageBase.do_build")
+    @patch("docker_pkg.image.DockerDriver.do_build")
     def test_build_ok(self, parent):
         # Test simple image with no build artifacts
         self.image._create_build_environment = MagicMock()
@@ -222,7 +214,7 @@ class TestDockerImage(unittest.TestCase):
         self.image._create_build_environment.assert_called_with()
         self.image._clean_build_environment.assert_called_with()
 
-    @patch("docker_pkg.image.DockerImageBase.do_build")
+    @patch("docker_pkg.image.DockerDriver.do_build")
     def test_build_exception(self, parent):
         # Test image that raises exception during a build is properly handled
         self.image._create_build_environment = MagicMock()

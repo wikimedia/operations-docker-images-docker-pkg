@@ -232,7 +232,7 @@ def prune(application: builder.DockerBuilder, nightly: str):
     print("== Step 1: pruning images")
     for fsm in pc:
         print("* Pruning old versions of {}".format(fsm.label))
-        if not fsm.image.prune():
+        if not fsm.image.driver.prune():
             print("* Errors pruning old images for {}".format(fsm.label))
 
 
