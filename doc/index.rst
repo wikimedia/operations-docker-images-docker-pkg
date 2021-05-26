@@ -14,7 +14,9 @@ Api
     docker_pkg.builder
     docker_pkg.cli
     docker_pkg.dockerfile
+    docker_pkg.drivers
     docker_pkg.image
+
 
 Indices and tables
 ==================

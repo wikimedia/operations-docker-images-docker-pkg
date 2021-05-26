@@ -10,7 +10,7 @@ from typing import Any, Dict, Generator, List, Optional, Set
 import docker
 import requests
 
-from docker_pkg import image, log
+from docker_pkg import drivers, image, log
 
 mutex = Lock()
 
@@ -49,7 +49,9 @@ class ImageFSM:
         pull: bool = True,
     ):
         self.config = config
-        self.image = image.DockerImage(root, client, self.config, nocache=nocache)
+        # Create a generic driver to inject in the image.
+        driver = drivers.get(config, client=client, nocache=nocache)
+        self.image = image.DockerImage(root, driver, self.config)
 
         self.state = self.STATE_TO_BUILD
         self.children: Set["ImageFSM"] = set()
@@ -256,7 +258,7 @@ class DockerBuilder:
         """
 
         roots = []
-        for root, dirs, files in os.walk(self.root):
+        for root, _, files in os.walk(self.root):
             hasTemplate = "Dockerfile.template" in files
             hasChangelog = "changelog" in files
 

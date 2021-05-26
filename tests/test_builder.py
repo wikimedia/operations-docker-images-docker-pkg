@@ -4,7 +4,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, call, patch
 
-from docker_pkg import dockerfile, image
+from docker_pkg import dockerfile, image, drivers
 from docker_pkg.builder import DockerBuilder, ImageFSM
 
 from tests import fixtures_dir
@@ -130,7 +130,7 @@ class TestDockerBuilder(unittest.TestCase):
         self.assertIsNone(db.glob)
 
     def test_scan(self):
-        with patch("docker_pkg.image.DockerDriver.exists") as mocker:
+        with patch("docker_pkg.drivers.DockerDriver.exists") as mocker:
             mocker.return_value = False
             self.builder.scan()
         self.assertEqual(
@@ -279,7 +279,7 @@ class TestDockerBuilder(unittest.TestCase):
         self.builder.glob = "*a:*"
         assert self.builder.images_to_update() == {a, b, c, d}
 
-    @patch("docker_pkg.image.DockerDriver.exists")
+    @patch("docker_pkg.drivers.DockerDriver.exists")
     @patch("docker_pkg.image.DockerImage.build")
     @patch("docker_pkg.image.DockerImage.verify")
     def test_build(self, verify, build, exists):
