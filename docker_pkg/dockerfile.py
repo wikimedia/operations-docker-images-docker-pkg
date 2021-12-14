@@ -8,7 +8,7 @@ import re
 
 from typing import Any, Dict, Set
 
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, FileSystemLoader, Template, StrictUndefined
 
 from docker_pkg import log, ImageLabel
 
@@ -16,7 +16,7 @@ from docker_pkg import log, ImageLabel
 class TemplateEngine:
     known_images: Set[str] = set()
     config: Dict[str, Any] = {}
-    env: Environment = Environment(extensions=["jinja2.ext.do"])
+    env: Environment = Environment(extensions=["jinja2.ext.do"], undefined=StrictUndefined)
 
     @classmethod
     def setup(cls, config: Dict[str, Any], known_images: Set[str]):
