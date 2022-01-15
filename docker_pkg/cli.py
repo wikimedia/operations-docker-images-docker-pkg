@@ -19,8 +19,8 @@ defaults: Dict[str, Any] = {
     # disabled.
     "username": None,
     "password": None,
-    # The base image for most images in the build directory
-    "seed_image": "wikimedia-stretch:latest",
+    # List of image:tags that we use as base for the images we're building.
+    "base_images": [],
     # Additional apt options to inject when installing packages
     "apt_options": "",
     # Http proxy to use when building/pulling images. If not defined, no proxy will be used.
@@ -28,8 +28,6 @@ defaults: Dict[str, Any] = {
     # Proxy address to use for apt. If it is not defined, but http_proxy is, the http_proxy will be
     # used.
     "apt_only_proxy": None,
-    # List of additional image:tags besides the base image that we're basing our images upon.
-    "base_images": [],
     # Namespace under which the images will be published on the registry.
     "namespace": "",
     # Number of parallel scan operations to conduct.

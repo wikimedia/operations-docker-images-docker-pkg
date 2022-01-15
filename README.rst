@@ -62,9 +62,7 @@ templates, but also affect how ``docker-pkg`` works:
   will be used as an apt proxy as well.
 * ``apt_options``: a string containing additional apt options you want to add to the apt 
   command line when installing packages. 
-* ``seed_image``: the default base image, that should be used by most images in your 
-  repository as their base.
-* ``base_images``: Additional images that are not built by docker-pkg but should be present
+* ``base_images``: images that are not built by docker-pkg but should be present
   or pulled in order to be able to build the images.
 * ``scan_workers``: maximum number of threads to use when scanning local
   definition of images. For each image found, ``docker-pkg`` queries the local
@@ -121,7 +119,6 @@ Variables
 '''''''''
 
 * ``registry``: the address of the docker registry
-* ``seed_image``: the seed image to use as a base for the production dockerfiles
 
 
 Filters

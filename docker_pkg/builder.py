@@ -211,6 +211,10 @@ class DockerBuilder:
             self.pull = False
         else:
             self.pull = pull
+
+        # Base images we need to refresh before building, see T219398, as labels.
+        self.base_images: List[str] = config.get("base_images", [])
+
         self.client = docker.from_env(version="auto", timeout=600)
         # Perform a login if the credentials are provided
         if all(
@@ -222,11 +226,7 @@ class DockerBuilder:
                 registry="https://{}".format(self.config["registry"]),
                 reauth=True,
             )
-        # Base images we need to refresh before building, see T219398, as labels.
-        self.base_images: List[str] = config.get("base_images", [])
-        seed = config.get("seed_image", "")
-        if seed:
-            self.base_images.append(seed)
+
         # We create three lists here:
         # all_images is a set of all the ImageFSMs generated for the images we find in our scan
         # known_images is a list of full image labels (so, fullname:tag) that is a sum of what we

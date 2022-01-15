@@ -1,22 +1,27 @@
+import copy
 import logging
 import os
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, call, patch
 
-from docker_pkg import dockerfile, image, drivers
+from docker_pkg import dockerfile, drivers, image
 from docker_pkg.builder import DockerBuilder, ImageFSM
 
 from tests import fixtures_dir
 
 
 class TestImageFSM(unittest.TestCase):
+    default_configuration = {"base_images": ["test:123"]}
+
     def setUp(self):
         ImageFSM._instances = []
         dockerfile.TemplateEngine.setup({}, [])
         with patch("docker.from_env") as client:
             self.img = ImageFSM(
-                os.path.join(fixtures_dir, "foo-bar"), client, {"seed_image": "test"}
+                os.path.join(fixtures_dir, "foo-bar"),
+                client,
+                copy.deepcopy(self.default_configuration),
             )
 
     def test_init(self):
@@ -28,7 +33,7 @@ class TestImageFSM(unittest.TestCase):
             ImageFSM,
             os.path.join(fixtures_dir, "foo-bar"),
             MagicMock(),  # here should go a docker client
-            {"seed_image": "test"},
+            self.default_configuration,
         )
 
     @patch("docker.from_env")
@@ -37,11 +42,11 @@ class TestImageFSM(unittest.TestCase):
         exists.return_value = True
         ImageFSM._instances = []
         # We set up no registry, thus we can't have a published image.
-        img = ImageFSM(os.path.join(fixtures_dir, "foo-bar"), client, {"seed_image": "test"})
+        img = ImageFSM(os.path.join(fixtures_dir, "foo-bar"), client, self.default_configuration)
         self.assertEqual(img.state, ImageFSM.STATE_BUILT)
         ImageFSM._instances = []
         exists.return_value = False
-        img = ImageFSM(os.path.join(fixtures_dir, "foo-bar"), client, {"seed_image": "test"})
+        img = ImageFSM(os.path.join(fixtures_dir, "foo-bar"), client, self.default_configuration)
         self.assertEqual(img.state, ImageFSM.STATE_TO_BUILD)
 
     def test_label(self):
@@ -97,10 +102,12 @@ class TestImageFSM(unittest.TestCase):
 
 
 class TestDockerBuilder(unittest.TestCase):
+    default_configuration = {"base_images": ["test"]}
+
     def setUp(self):
         dockerfile.TemplateEngine.setup({}, [])
         with patch("docker.from_env"):
-            self.builder = DockerBuilder(fixtures_dir, {"seed_image": "test"})
+            self.builder = DockerBuilder(fixtures_dir, copy.deepcopy(self.default_configuration))
         ImageFSM._instances = []
 
     def img_metadata(self, name, tag, deps):
@@ -130,6 +137,7 @@ class TestDockerBuilder(unittest.TestCase):
         self.assertIsNone(db.glob)
 
     def test_scan(self):
+        self.assertEqual(self.builder.known_images, {"test"})
         with patch("docker_pkg.drivers.DockerDriver.exists") as mocker:
             mocker.return_value = False
             self.builder.scan()
