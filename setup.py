@@ -17,6 +17,7 @@ install_requires = [
     "jinja2>=2.9.6",
     "python-debian>=0.1.30",
     "requests",
+    "attrs",
 ]
 test_requires = ["coverage", "pytest"]
 extras = {
