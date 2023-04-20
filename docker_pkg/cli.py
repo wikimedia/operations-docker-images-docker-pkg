@@ -144,13 +144,16 @@ def main(args: Optional[argparse.Namespace] = None):
     if args is None:
         args = parse_args(sys.argv[1:])
     logfmt = "%(asctime)s [docker-pkg-build] %(levelname)s - %(message)s (%(filename)s:%(lineno)s)"  # noqa: E501
+    datefmt = "%Y-%m-%d %H:%M:%S"
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG, format=logfmt)
+        logging.basicConfig(level=logging.DEBUG, format=logfmt, datefmt=datefmt)
     elif args.info:
-        logging.basicConfig(level=logging.INFO, format=logfmt)
+        logging.basicConfig(level=logging.INFO, format=logfmt, datefmt=datefmt)
     else:
         log_to_stdout = False
-        logging.basicConfig(level=logging.INFO, filename="./docker-pkg-build.log", format=logfmt)
+        logging.basicConfig(
+            level=logging.INFO, filename="./docker-pkg-build.log", format=logfmt, datefmt=datefmt
+        )
 
     config = read_config(args.configfile)
     # Force requests to use the configured ca bundle.
@@ -178,7 +181,6 @@ def main(args: Optional[argparse.Namespace] = None):
     application = builder.DockerBuilder(args.directory, config, select, nocache, pull)
     dockerfile.TemplateEngine.setup(application.config, application.known_images)
     if args.mode == "build":
-
         build(application, log_to_stdout)
     elif args.mode == "prune":
         prune(application, nightly_opt)

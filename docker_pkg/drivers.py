@@ -94,7 +94,6 @@ class DockerDriver(DriverInterface):
                 error_msg = chunk["errorDetail"]["message"].rstrip()
                 error_code = chunk["errorDetail"].get("code", 0)
                 if error_code != 0:
-
                     logger.error(
                         "Build command failed with exit code %s: %s", error_code, error_msg
                     )
