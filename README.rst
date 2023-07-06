@@ -45,9 +45,16 @@ Configuration
 -------------
 
 You can provide any variable via a configuration file (in YAML format) that you
-will then be able to reference in your templates. In addition to those, there
-are some builtin configuration variables that will not only be usable in your
-templates, but also affect how ``docker-pkg`` works:
+will then be able to reference in your templates.
+
+A user configuration file `$XDG_CONFIG_HOME/docker-pkg.yaml` or
+`~/.config/docker-pkg.yaml` will be loaded first when it exists. It can be used
+to share common settings between multiple docker-pkg definition repositories
+(for example `apt_only_proxy`). Settings defined in `--configfile` take
+precedence over user settings.
+
+In addition to those, there are some builtin configuration variables that will
+not only be usable in your templates, but also affect how ``docker-pkg`` works:
 
 * ``registry``: The address of the docker registry to use for all docker-related
   operations, including checking the published state of the image. The default

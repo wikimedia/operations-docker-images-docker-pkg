@@ -1,11 +1,26 @@
+from contextlib import contextmanager
+from copy import deepcopy
 import os
 import unittest
 
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import call, patch, MagicMock, mock_open
 
 import docker_pkg.cli
 from docker_pkg.image import DockerImage
 from tests import fixtures_dir
+
+
+@contextmanager
+def ignore_user_config():
+    original_exists = deepcopy(os.path.exists)
+
+    def _mask_user_config(path):
+        if path == os.path.expanduser("~/.config/docker-pkg.yaml"):
+            return False
+        return original_exists(path)
+
+    with patch("os.path.exists", side_effect=_mask_user_config):
+        yield
 
 
 class TestCli(unittest.TestCase):
@@ -24,7 +39,8 @@ class TestCli(unittest.TestCase):
         args.debug = False
         args.info = False
         with patch("docker_pkg.cli.build") as b:
-            docker_pkg.cli.main(args)
+            with ignore_user_config():
+                docker_pkg.cli.main(args)
             builder.assert_called_with(fixtures_dir, docker_pkg.cli.defaults, "python*", True, True)
             b.assert_called_with(application, False)
             args.info = True
@@ -47,7 +63,8 @@ class TestCli(unittest.TestCase):
         args.info = False
         args.nightly = "20190503"
         with patch("docker_pkg.cli.prune") as p:
-            docker_pkg.cli.main(args)
+            with ignore_user_config():
+                docker_pkg.cli.main(args)
             p.assert_called_with(application, "20190503")
             builder.assert_called_with(
                 fixtures_dir, docker_pkg.cli.defaults, "python*", True, False
@@ -64,7 +81,8 @@ class TestCli(unittest.TestCase):
         args.reason = "36 chambers"
         args.version = "version!"
         with patch("docker_pkg.cli.update") as u:
-            docker_pkg.cli.main(args)
+            with ignore_user_config():
+                docker_pkg.cli.main(args)
             u.assert_called_with(application, "36 chambers", "python", "version!")
             builder.assert_called_with(
                 fixtures_dir, docker_pkg.cli.defaults, "*python:*", True, False
@@ -111,3 +129,49 @@ class TestCli(unittest.TestCase):
             docker_pkg.cli.defaults["registry"],
             "docker_pkg.cli.defaults must not be altered",
         )
+
+    @patch("os.path.exists", return_value=True)
+    @patch.dict("os.environ", {"HOME": "/home/jane"}, clear=True)
+    def test_read_config_from_user_home(self, *_):
+        with patch("docker_pkg.cli._read_config_file") as read_config_file:
+            conf = docker_pkg.cli.read_config("someconfig.yaml")
+            read_config_file.assert_has_calls(
+                [
+                    call("/home/jane/.config/docker-pkg.yaml"),
+                    call("someconfig.yaml"),
+                ]
+            )
+
+    @patch("os.path.exists", return_value=True)
+    @patch.dict("os.environ", {"XDG_CONFIG_HOME": "/xdg/config/home"}, clear=True)
+    def test_read_config_from_xdg_config_home(self, *_):
+        with patch("docker_pkg.cli._read_config_file") as read_config_file:
+            conf = docker_pkg.cli.read_config("otherconfig.yaml")
+            read_config_file.assert_has_calls(
+                [
+                    call("/xdg/config/home/docker-pkg.yaml"),
+                    call("otherconfig.yaml"),
+                ]
+            )
+
+    @patch("os.path.exists", return_value=True)
+    def test_read_config_user_config_overriden_by_local_config(self, *_):
+        with patch("docker_pkg.cli._read_config_file") as read_config_file:
+            read_config_file.side_effect = [
+                {
+                    "foo": "user value",
+                    "user": "setting",
+                    "default": "set by user",
+                    "somedefault": "overrides default",
+                },
+                {
+                    "foo": "local value",
+                    "local": "setting",
+                },
+            ]
+            conf = docker_pkg.cli.read_config("/dev/null")
+            self.assertIn("user", conf, "Has read config from user dir")
+            self.assertIn("local", conf, "Has read config from local dir")
+            self.assertEquals(
+                "local value", conf.get("foo"), "local value takes precedence over user config"
+            )

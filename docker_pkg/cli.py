@@ -124,16 +124,31 @@ def parse_args(args: List[str]):
     return parser.parse_args(args)
 
 
-def read_config(configfile: str):
-    config = defaults.copy()
-
+def _read_config_file(configfile: str):
     with open(configfile, "rb") as fh:
-        raw_config = yaml.safe_load(fh)
-    if raw_config:
-        config.update(raw_config)
+        config = yaml.safe_load(fh)
+    if config is None:
+        return {}
+    else:
+        return config
+
+
+def read_config(configfile: str):
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config/"))
+    user_config_file = os.path.join(xdg_config_home, "docker-pkg.yaml")
+    if os.path.exists(user_config_file):
+        user_config = _read_config_file(user_config_file)
+    else:
+        user_config = {}
+
+    local_config = _read_config_file(configfile)
+
+    config = defaults.copy()
+    config.update({**user_config, **local_config})
     # If no apt proxy is provided, but a generic http proxy was provided, copy it over
     if config["http_proxy"] is not None and config["apt_only_proxy"] is None:
         config["apt_only_proxy"] = config["http_proxy"]
+
     return config
 
 
@@ -152,8 +167,8 @@ def main(args: Optional[argparse.Namespace] = None):
         logging.basicConfig(
             level=logging.INFO, filename="./docker-pkg-build.log", format=logfmt, datefmt=datefmt
         )
-
     config = read_config(args.configfile)
+
     # Force requests to use the configured ca bundle.
     if config["ca_bundle"] is not None:
         os.environ["REQUESTS_CA_BUNDLE"] = config["ca_bundle"]
