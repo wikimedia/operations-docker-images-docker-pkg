@@ -16,7 +16,7 @@ install_requires = [
     "pyyaml>=3.11",
     "jinja2>=2.9.6",
     "python-debian>=0.1.30",
-    "requests",
+    "requests<2.29",
     "attrs",
 ]
 test_requires = ["coverage", "pytest"]
