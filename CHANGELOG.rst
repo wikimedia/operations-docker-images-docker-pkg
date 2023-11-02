@@ -1,5 +1,25 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
+`v4.0.0` (2023-11-02)
+^^^^^^^^^^^^^^^^^^^^^
+API breaking changes
+""""""""""""""""""""
+* Removed the concept of a `seed_image`, now superseded by multiple base images
+
+New features
+""""""""""""
+* New driver interface that allows to add multiple build backends
+* docker-pkg will now search for an user provided configuration file under "~/.config/docker-pkg.yaml"
+* PATH is injected in the test script as it's a common mistake
+* Undefined variables in templates now cause a build failure
+* Added validation with mypy, python 3.11
+
+Bugfixes:
+"""""""""
+* Pin urllib3 to < 2.x
+* remove ms from datefmt
+* Fix sphinx deprecations
+
 `v3.0.3` (2021-05-13)
 ^^^^^^^^^^^^^^^^^^^^^
 Bugfixes:
