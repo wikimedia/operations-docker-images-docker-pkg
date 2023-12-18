@@ -112,7 +112,9 @@ def parse_args(args: List[str]):
     # Create an update for a specific image and all of their children.
     # Cli usage: docker-pkg update python3-dev --reason "Adding newer pip version" images_dir
     update = actions.add_parser("update", help="Helper for preparing an update of an image tree")
-    update.add_argument("select", help="Names of the base image being updated", metavar="NAME")
+    update.add_argument(
+        "select", help="A glob pattern for the base images being updated", metavar="NAME"
+    )
     update.add_argument("--reason", help="Reason for the update.", default="Security update")
     update.add_argument(
         "--version", "-v", help="Specify a version for the image to upgrade", default=None
