@@ -237,7 +237,7 @@ class DockerImage:
                     log.info("Could not find path %s, skipping verification of %s", arg, self.name)
                     return True
 
-        args = [el.format(image=self.name, path=self.path) for el in self.config["verify_args"]]
+        args = [el.format(image=self.image, path=self.path) for el in self.config["verify_args"]]
         try:
             executable = self.config["verify_command"]
             subprocess.run("which {}".format(executable), shell=True, check=True)

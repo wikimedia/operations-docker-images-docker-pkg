@@ -4,6 +4,7 @@ Dockerfile.template processing
 The files are Jinja2 templates, the class provides built-in templates to ease
 writing Dockerfiles.
 """
+
 import re
 
 from typing import Any, Dict, Set
