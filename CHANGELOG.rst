@@ -1,5 +1,11 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
+`v4.0.1` (2024-06-14)
+^^^^^^^^^^^^^^^^^^^^^
+Bugfixes:
+"""""""""
+* Call test commands with the full image name (including) tag, rather than just the image name
+
 `v4.0.0` (2023-11-02)
 ^^^^^^^^^^^^^^^^^^^^^
 API breaking changes
