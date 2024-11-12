@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+from pathlib import Path
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, call, patch
@@ -142,11 +143,12 @@ class TestDockerBuilder(unittest.TestCase):
             mocker.return_value = False
             self.builder.scan()
         self.assertEqual(
-            self.builder.known_images, {"test", "foo-bar:0.0.1", "foobar-server:0.0.1~alpha1"}
+            self.builder.known_images, {"test", "foo-bar:0.0.1", "foobar-server:0.0.1~alpha1", "upstream-version:1.63.0-1"}
         )
-        # Build chain is correctly ordered
+        # Build chain is complete, and correctly ordered
         bc = [img.label for img in self.builder.build_chain]
-        self.assertEqual(bc, ["foo-bar:0.0.1", "foobar-server:0.0.1~alpha1"])
+        self.assertCountEqual(bc, {"foo-bar:0.0.1", "foobar-server:0.0.1~alpha1", "upstream-version:1.63.0-1"})
+        self.assertLess(bc.index("foo-bar:0.0.1"), bc.index("foobar-server:0.0.1~alpha1"))
 
     def test_scan_skips_when_missing_changelog(self):
         with patch("os.walk") as os_walk:
@@ -314,6 +316,25 @@ class TestDockerBuilder(unittest.TestCase):
         self.assertEqual("verified", result[0].state)
         self.assertEqual("foobar-server:0.0.1~alpha1", result[1].label)
         self.assertEqual("error", result[1].state)
+
+    @patch("docker_pkg.drivers.DockerDriver.exists")
+    @patch("docker_pkg.image.DockerImage.build")
+    @patch("docker_pkg.image.DockerImage.verify")
+    def test_build_upstream_version(self, verify, build, exists):
+        with patch("docker_pkg.drivers.DockerDriver.exists") as mocker:
+            mocker.return_value = False
+            self.builder.scan()
+
+        exists.return_value = False
+        build.return_value = True
+        verify.return_value = True
+        result = [r for r in self.builder.build()]
+        dockerfile.TemplateEngine.setup({}, self.builder.known_images)
+
+        upstream_version = [r for r in result if r.label == "upstream-version:1.63.0-1"][0]
+        self.assertEqual("upstream-version:1.63.0-1", upstream_version.label)
+        self.assertEqual("verified", upstream_version.state)
+        self.assertIn("ARG UPSTREAM_VERSION=1.63.0", upstream_version.image.render_dockerfile())
 
     @patch("docker_pkg.image.DockerImage.build")
     @patch("docker_pkg.image.DockerImage.verify")

@@ -172,9 +172,12 @@ class DockerImage:
     def depends(self) -> List[str]:
         return self.metadata["depends"]
 
-    def write_dockerfile(self, build_path: str) -> str:
+    def render_dockerfile(self) -> str:
         tpl = dockerfile.from_template(self.path, "Dockerfile.template")
-        docker_file = tpl.render(**self.config)
+        return tpl.render(**self.config)
+
+    def write_dockerfile(self, build_path: str) -> str:
+        docker_file = self.render_dockerfile()
         log.info("Generated dockerfile for %s:\n%s", self.label.image(), docker_file)
         if docker_file is None:
             raise RuntimeError("The generated dockerfile is empty")
@@ -182,6 +185,7 @@ class DockerImage:
         output_file = os.path.join(build_path, "Dockerfile")
         with open(output_file, "w") as fh:
             fh.write(docker_file)
+
         # Ensure the last USER instruction contains a numeric UID
         if self.config.get("force_numeric_user") and not dockerfile.has_numeric_user(docker_file):
             raise RuntimeError(

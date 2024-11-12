@@ -9,6 +9,7 @@ import re
 
 from typing import Any, Dict, Set
 
+import debian.debian_support
 from jinja2 import Environment, FileSystemLoader, Template, StrictUndefined
 
 from docker_pkg import log, ImageLabel
@@ -34,12 +35,30 @@ class TemplateEngine:
             label = ImageLabel(cls.config, image_name, "")
             image_name = label.label()
             for img_with_tag in cls.known_images:
-                name, tag = img_with_tag.split(":")
+                try:
+                    name, tag = img_with_tag.split(":")
+                except ValueError:
+                    continue
                 if image_name == name:
                     return img_with_tag
-            raise ValueError("Image {name} not found".format(name=image_name))
+            raise ValueError(
+                "Image {name} not found, or it has no tag (known={known})".format(
+                    name=image_name, known=cls.known_images
+                )
+            )
 
         cls.env.filters["image_tag"] = find_image_tag
+
+        def upstream_version(image_tag):
+            try:
+                image_name, tag = image_tag.split(":")
+            except ValueError:
+                raise ValueError(f"upstream_version({image_tag}) -> no image name found in input")
+            if "-" not in tag:
+                return tag
+            return debian.debian_support.BaseVersion(tag).upstream_version
+
+        cls.env.filters["upstream_version"] = upstream_version
 
         def get_uid(user: str):
             mappings = cls.config["known_uid_mappings"]

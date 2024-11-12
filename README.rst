@@ -140,6 +140,15 @@ Filters
     FROM {{ registry }}/{{ "nodejs-dev" | image_tag }}
     # Will render to e.g. 'FROM my-registry/nodejs-dev:0.3.1'
 
+* ``upstream_version``: This filter takes the output of image_tag and returns
+  the upstream version part of the tag, before any Debianized version suffix.
+  Example:
+
+ .. code-block:: dockerfile
+
+    ARG UPSTREAM_VERSION={{ "jaeger" | image_tag | upstream_version }}
+    RUN curl "https://${URL}/jaeger-${UPSTREAM_VERSION}-linux-amd64.tar.gz"
+
 * ``apt_install``: this filter will get the string you pass it as a list of
   packages to install with apt, and add the correct stanza to your dockerfile.
   It will also manage the setup of a proxy for apt if one is provided in the
