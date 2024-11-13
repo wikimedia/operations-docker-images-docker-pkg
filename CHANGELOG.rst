@@ -1,5 +1,11 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
+`v4.0.2` (2024-11-13)
+New features
+""""""""""""
+* upstream_version filter to retrieve the upstream version from an image tag.
+  Can be useful in performing builds or fetches of external artifacts.
+
 `v4.0.1` (2024-06-14)
 ^^^^^^^^^^^^^^^^^^^^^
 Bugfixes:
