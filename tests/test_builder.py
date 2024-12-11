@@ -346,7 +346,7 @@ class TestDockerBuilder(unittest.TestCase):
                 r for r in result if r.label == f"{name}:{version}"][0]
             self.assertEqual(f"{name}:{version}", upstream_version.label)
             self.assertEqual("verified", upstream_version.state)
-            self.assertIn("ARG UPSTREAM_VERSION=1.63.0", upstream_version.image.render_dockerfile())
+            self.assertIn("ARG UPSTREAM_VERSION=1.63.0\n", upstream_version.image.render_dockerfile())
 
     @patch("docker_pkg.image.DockerImage.build")
     @patch("docker_pkg.image.DockerImage.verify")
