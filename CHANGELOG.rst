@@ -1,5 +1,12 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
+`v4.0.3` (2024-12-11)
+^^^^^^^^^^^^^^^^^^^^^
+Bugfixes:
+"""""""""
+* Improve the upstream_version filter to tolerate version strings with
+  multiple hypens.
+
 `v4.0.2` (2024-11-13)
 New features
 """"""""""""
