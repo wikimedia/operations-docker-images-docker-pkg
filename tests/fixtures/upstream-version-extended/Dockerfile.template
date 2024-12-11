@@ -1,0 +1,5 @@
+FROM test
+
+ARG UPSTREAM_VERSION={{ "upstream-version-extended" | image_tag | upstream_version }}
+
+RUN echo Upstream version: $UPSTREAM_VERSION

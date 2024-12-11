@@ -143,11 +143,19 @@ class TestDockerBuilder(unittest.TestCase):
             mocker.return_value = False
             self.builder.scan()
         self.assertEqual(
-            self.builder.known_images, {"test", "foo-bar:0.0.1", "foobar-server:0.0.1~alpha1", "upstream-version:1.63.0-1"}
+            self.builder.known_images, {
+                "test", "foo-bar:0.0.1", "foobar-server:0.0.1~alpha1",
+                "upstream-version:1.63.0-1",
+                "upstream-version-extended:1.63.0-1-20241211"
+            }
         )
         # Build chain is complete, and correctly ordered
         bc = [img.label for img in self.builder.build_chain]
-        self.assertCountEqual(bc, {"foo-bar:0.0.1", "foobar-server:0.0.1~alpha1", "upstream-version:1.63.0-1"})
+        self.assertCountEqual(bc, {
+            "foo-bar:0.0.1", "foobar-server:0.0.1~alpha1",
+            "upstream-version:1.63.0-1",
+            "upstream-version-extended:1.63.0-1-20241211"
+        })
         self.assertLess(bc.index("foo-bar:0.0.1"), bc.index("foobar-server:0.0.1~alpha1"))
 
     def test_scan_skips_when_missing_changelog(self):
@@ -331,10 +339,14 @@ class TestDockerBuilder(unittest.TestCase):
         result = [r for r in self.builder.build()]
         dockerfile.TemplateEngine.setup({}, self.builder.known_images)
 
-        upstream_version = [r for r in result if r.label == "upstream-version:1.63.0-1"][0]
-        self.assertEqual("upstream-version:1.63.0-1", upstream_version.label)
-        self.assertEqual("verified", upstream_version.state)
-        self.assertIn("ARG UPSTREAM_VERSION=1.63.0", upstream_version.image.render_dockerfile())
+        for name, version in [
+                ("upstream-version", "1.63.0-1"),
+                ("upstream-version-extended", "1.63.0-1-20241211")]:
+            upstream_version = [
+                r for r in result if r.label == f"{name}:{version}"][0]
+            self.assertEqual(f"{name}:{version}", upstream_version.label)
+            self.assertEqual("verified", upstream_version.state)
+            self.assertIn("ARG UPSTREAM_VERSION=1.63.0", upstream_version.image.render_dockerfile())
 
     @patch("docker_pkg.image.DockerImage.build")
     @patch("docker_pkg.image.DockerImage.verify")

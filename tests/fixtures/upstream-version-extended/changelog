@@ -1,0 +1,5 @@
+upstream-version-extended (1.63.0-1-20241211) wmf; urgency=medium
+
+  * Initial release. (Closes: T123456789)
+
+ -- Guiseppe Lavagetto <glavagetto@wikimedia.org>  Fri, 13 Oct 2071 18:49:14 +0200

@@ -56,6 +56,12 @@ class TemplateEngine:
                 raise ValueError(f"upstream_version({image_tag}) -> no image name found in input")
             if "-" not in tag:
                 return tag
+            # If we have more than one -suffix (for example, -1-20241211 etc..)
+            # it is ok to keep only the first one, otherwise BaseVersion
+            # will not return the correct result
+            if tag.count("-") > 1:
+                tag = "-".join(tag.split("-")[:2])
+
             return debian.debian_support.BaseVersion(tag).upstream_version
 
         cls.env.filters["upstream_version"] = upstream_version
