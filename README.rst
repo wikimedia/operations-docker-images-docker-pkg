@@ -76,6 +76,10 @@ not only be usable in your templates, but also affect how ``docker-pkg`` works:
   Docker daemon and the registry. Default: 8.
 * ``known_uid_mappings`` is a dictionary of username:uid mappings that can be used with the
   `uid` template helper.
+* ``container_limits`` apply cpu/memory constraints to the builds. The available settings are:
+  `memory` (int): set memory limit for build, `memswap` (int): Total memory (memory + swap, -1 to disable),
+  `cpushares` (int): CPU shares (relative weight) and `cpusetcpus` (str): CPUs in which to allow execution (e.g.,
+  "0-3", "0,1"). These settings can be expressed as a comma separated list, like: `cpusetcpus=0-2,memory=4000000`.
 * `verify_command` and `verify_args` specify which command to run, with which arguments, to verify 
   that an image that was built actually works as intended. By default, the `test.sh` file in the 
   image directory will be run, with the image full name as argument. If such file is not found, no verification step proceeds.

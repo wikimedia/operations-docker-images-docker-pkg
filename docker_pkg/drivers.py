@@ -77,6 +77,29 @@ class DockerDriver(DriverInterface):
     client: docker.client.DockerClient = attr.ib()
     nocache: bool = attr.ib(default=True)
 
+    @property
+    def container_limits(self) -> Dict[str, str]:
+        cl = self.config.get("container_limits", None)
+        if cl is None:
+            return {}
+        container_limits = {}
+        settings = cl.split(",")
+        allowed_key_values = ["memory", "memswap", "cpushares", "cpusetcpus"]
+        for setting in settings:
+            parsed_setting = setting.split("=")
+            if len(parsed_setting) != 2:
+                raise RuntimeError(
+                    f"The container_limits setting {parsed_setting} "
+                    "should follow the format key=value."
+                )
+            if parsed_setting[0] not in allowed_key_values:
+                raise RuntimeError(
+                    "The container_limits setting {parsed_setting} "
+                    f"can list only the following keys: {allowed_key_values}"
+                )
+            container_limits[parsed_setting[0]] = parsed_setting[1]
+        return container_limits
+
     def do_build(self, build_path: str, filename: str = "Dockerfile") -> str:
         """
         Builds the image
@@ -118,6 +141,7 @@ class DockerDriver(DriverInterface):
 
         image_logger = log.getChild(self.label.image())
         with pushd(build_path):
+            # More info: https://docker-py.readthedocs.io/en/stable/api.html#module-docker.api.build
             for line in self.client.api.build(
                 path=build_path,
                 dockerfile=filename,
@@ -126,6 +150,7 @@ class DockerDriver(DriverInterface):
                 rm=True,
                 pull=False,  # We manage pulling ourselves
                 buildargs=self.buildargs,
+                container_limits=self.container_limits,
                 decode=True,
             ):
                 stream_to_log(image_logger, line)

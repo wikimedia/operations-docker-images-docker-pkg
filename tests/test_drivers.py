@@ -39,6 +39,17 @@ class TestDockerDriver(unittest.TestCase):
         self.driver.config["http_proxy"] = "foobar"
         self.assertEqual(self.driver.buildargs["HTTPS_PROXY"], "foobar")
 
+    def test_containerlimits(self):
+        self.driver.config = {"container_limits": "cpusetcpus=0-2"}
+        self.assertEqual(self.driver.container_limits, {"cpusetcpus": "0-2"})
+        self.driver.config = {"container_limits": "cpusetcpus=0-2,memory=40000"}
+        self.assertEqual(self.driver.container_limits, {"cpusetcpus": "0-2", "memory": "40000"})
+        with self.assertRaises(RuntimeError):
+            self.driver = drivers.DockerDriver(
+                {"container_limits": "batman=0-2"}, self.label, self.docker, True
+            )
+            self.driver.do_build("/tmp", filename="test")
+
     def test_prune(self):
         def mock_image(tags, id):
             image = MagicMock()
@@ -75,6 +86,7 @@ class TestDockerDriver(unittest.TestCase):
             rm=True,
             pull=False,
             buildargs={},
+            container_limits={},
         )
         # Check that nocache is correctly passed down
         self.driver.nocache = False
@@ -87,6 +99,7 @@ class TestDockerDriver(unittest.TestCase):
             rm=True,
             pull=False,
             buildargs={},
+            container_limits={},
             decode=True,
         )
 
