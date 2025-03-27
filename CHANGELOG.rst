@@ -1,5 +1,16 @@
 docker-pkg changelog
 ^^^^^^^^^^^^^^^^^^^^
+`v4.0.4` (2025-03-27)
+^^^^^^^^^^^^^^^^^^^^^
+Misc:
+"""""""""
+* Drop support for Python versions older than 3.9
+
+New features
+""""""""""""
+* Add the `container_limits` configuration option to limit CPU/memory
+  usage when building Dockerfiles on containers.
+
 `v4.0.3` (2024-12-11)
 ^^^^^^^^^^^^^^^^^^^^^
 Bugfixes:
