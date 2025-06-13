@@ -139,7 +139,7 @@ class DockerDriver(DriverInterface):
             else:
                 logger.warning("Unhandled stream chunk: %s" % chunk)
 
-        image_logger = log.getChild(self.label.image())
+        image_logger = log.getChild("do_build").getChild(self.label.short_name)
         with pushd(build_path):
             # More info: https://docker-py.readthedocs.io/en/stable/api.html#module-docker.api.build
             for line in self.client.api.build(

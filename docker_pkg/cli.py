@@ -158,7 +158,7 @@ def main(args: Optional[argparse.Namespace] = None):
     log_to_stdout = True
     if args is None:
         args = parse_args(sys.argv[1:])
-    logfmt = "%(asctime)s [docker-pkg-build] %(levelname)s - %(message)s (%(filename)s:%(lineno)s)"  # noqa: E501
+    logfmt = "%(asctime)s %(levelname)s %(name)s: %(message)s"
     datefmt = "%Y-%m-%d %H:%M:%S"
     if args.debug:
         logging.basicConfig(level=logging.DEBUG, format=logfmt, datefmt=datefmt)
