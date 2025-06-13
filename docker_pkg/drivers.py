@@ -126,12 +126,14 @@ class DockerDriver(DriverInterface):
                     "Building image {} failed".format(self.label.image()), logger
                 )
             elif "stream" in chunk:
-                logger.info(chunk["stream"].rstrip())
+                for line in chunk["stream"].splitlines():
+                    logger.info(line.rstrip())
             elif "status" in chunk:
                 if "progress" in chunk:
                     logger.debug("%s\t%s: %s ", chunk["status"], chunk["id"], chunk["progress"])
                 else:
-                    logger.info(chunk["status"])
+                    for line in chunk["status"].splitlines():
+                        logger.info(line.rstrip())
             elif "aux" in chunk:
                 # Extra information not presented to the user such as image
                 # digests or image id after building.
