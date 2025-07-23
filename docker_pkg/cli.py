@@ -143,6 +143,8 @@ def read_config(configfile: str):
     else:
         user_config = {}
 
+    if not os.path.exists(configfile):
+        raise SystemExit("Config file {} does not exist".format(configfile))
     local_config = _read_config_file(configfile)
 
     config = defaults.copy()
