@@ -65,7 +65,7 @@ def parse_args(args: List[str]):
     loglevel.add_argument("--info", action="store_true", help="Activate info logging")
 
     actions = parser.add_subparsers(
-        help="Action to perform: {}".format(",".join(ACTIONS)), dest="mode"
+        help="Action to perform: {}".format(",".join(ACTIONS)), dest="mode", required=True
     )
 
     # Build selected images from a directory
